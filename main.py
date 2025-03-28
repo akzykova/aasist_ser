@@ -1,10 +1,6 @@
 """
 Main script that trains, validates, and evaluates
 various models including AASIST.
-
-AASIST
-Copyright (c) 2021-present NAVER Corp.
-MIT license
 """
 import argparse
 import json
@@ -28,6 +24,9 @@ from evaluation import calculate_tDCF_EER
 from utils import create_optimizer, seed_worker, set_seed, str_to_bool
 
 warnings.filterwarnings("ignore", category=FutureWarning)
+
+
+from models.AASIST_SER import AASISTWithEmotion
 
 
 def main(args: argparse.Namespace) -> None:
@@ -212,20 +211,14 @@ def main(args: argparse.Namespace) -> None:
 def get_model(model_config: Dict, device: torch.device):
     """Define DNN model architecture"""
     architecture = model_config["architecture"]
-    
-    if architecture == "AASIST_SER":
-        # Для AASIST_SER используем AASISTWithEmotion
-        from models.AASIST_SER import AASISTWithEmotion
-        model = AASISTWithEmotion(
+
+    model = AASISTWithEmotion(
             aasist_config=model_config["aasist_config"],
             ser_model_name=model_config["ser_settings"]["model_name"],
             freeze_ser=str_to_bool(model_config["ser_settings"]["freeze"]),
             fusion_dim=model_config["ser_settings"]["fusion"]["hidden_dim"]
         )
-    else:
-        # Для обычного AASIST используем Model из AASIST.py
-        from models.AASIST import Model
-        model = Model(model_config["aasist_config"])
+
     
     model = model.to(device)
     nb_params = sum([param.view(-1).size()[0] for param in model.parameters()])
