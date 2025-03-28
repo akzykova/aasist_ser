@@ -211,23 +211,25 @@ def main(args: argparse.Namespace) -> None:
 
 def get_model(model_config: Dict, device: torch.device):
     """Define DNN model architecture"""
-    module = import_module("models.{}".format(model_config["architecture"]))
-    _model = getattr(module, "Model")
+    architecture = model_config["architecture"]
     
-    # Для AASIST_SER передаем оба конфига
-    if model_config["architecture"] == "AASIST_SER":
-        model = _model(
+    if architecture == "AASIST_SER":
+        # Для AASIST_SER используем AASISTWithEmotion
+        from models.AASIST_SER import AASISTWithEmotion
+        model = AASISTWithEmotion(
             aasist_config=model_config["aasist_config"],
             ser_model_name=model_config["ser_settings"]["model_name"],
             freeze_ser=str_to_bool(model_config["ser_settings"]["freeze"]),
             fusion_dim=model_config["ser_settings"]["fusion"]["hidden_dim"]
-        ).to(device)
+        )
     else:
-        # Для обычного AASIST передаем только aasist_config
-        model = _model(model_config["aasist_config"]).to(device)
+        # Для обычного AASIST используем Model из AASIST.py
+        from models.AASIST import Model
+        model = Model(model_config["aasist_config"])
     
+    model = model.to(device)
     nb_params = sum([param.view(-1).size()[0] for param in model.parameters()])
-    print("no. model params:{}".format(nb_params))
+    print(f"Model parameters: {nb_params}")
     return model
 
 
