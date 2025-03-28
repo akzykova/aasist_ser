@@ -1,11 +1,11 @@
 import torch
 import torch.nn as nn
-import torchaudio
-from transformers import Wav2Vec2Model, AutoConfig
 from .AASIST import Model
+from .ACRNN import acrnn  # Предполагается, что ACRNN модель определена где-то
 
 class AASISTWithEmotion(nn.Module):
-    def __init__(self, aasist_config, wav2vec_model_name="facebook/wav2vec2-base-960h", freeze_wav2vec=True, fusion_dim=256):
+    def __init__(self, aasist_config, ser_model_path="./pretrained_models/ser_acrnn.pth", 
+                 freeze_ser=True, fusion_dim=256):
         super().__init__()
 
         # 1. Инициализация AASIST
@@ -14,21 +14,29 @@ class AASISTWithEmotion(nn.Module):
             state_dict = torch.load(aasist_config["aasist_path"], map_location='cpu')
             self.aasist.load_state_dict(state_dict)
 
-        # 2. Инициализация Wav2Vec2
-        self.wav2vec = Wav2Vec2Model.from_pretrained(wav2vec_model_name)
-        if freeze_wav2vec:
-            for param in self.wav2vec.parameters():
+        # 2. Инициализация SER модели (ACRNN)
+        self.ser = acrnn()
+        ser_state_dict = torch.load(ser_model_path, map_location='cpu')
+        self.ser.load_state_dict(ser_state_dict)
+        
+        if freeze_ser:
+            for param in self.ser.parameters():
                 param.requires_grad = False
+
+        # Добавляем слои для обработки выхода SER модели (как в оригинальном коде)
+        self.ser_bn = nn.BatchNorm1d(num_features=50)
+        self.ser_selu = nn.SELU(inplace=True)
 
         # 3. Определение размерностей
         self.aasist_feat_dim = 5 * aasist_config["gat_dims"][1]
-        wav2vec_config = AutoConfig.from_pretrained(wav2vec_model_name)
-        self.wav2vec_feat_dim = wav2vec_config.hidden_size
+        self.ser_feat_dim = 64  # Размерность после max_pool2d((3,4)) в оригинальном коде
 
         # 4. Слои для объединения признаков
-        self.feature_norm = nn.LayerNorm(self.aasist_feat_dim + self.wav2vec_feat_dim)
+        self.feature_norm = nn.LayerNorm(self.aasist_feat_dim + self.ser_feat_dim)
+
+        self.fc = nn.Linear(self.aasist_feat_dim + self.ser_feat_dim, fusion_dim)
         self.fusion = nn.Sequential(
-            nn.Linear(self.aasist_feat_dim + self.wav2vec_feat_dim, fusion_dim),
+            self.fc,
             nn.ReLU(),
             nn.Dropout(0.2),
             nn.Linear(fusion_dim, 2)
@@ -38,20 +46,26 @@ class AASISTWithEmotion(nn.Module):
         # 1. Извлечение признаков из AASIST
         aasist_features = self.aasist(x, Freq_aug=Freq_aug)
 
-        # 2. Подготовка аудио для Wav2Vec2 (убираем канал)
-        x_wav2vec = x.squeeze(1)  # [batch, samples]
-
-        # 3. Извлечение признаков из Wav2Vec2
+        # 2. Извлечение признаков из SER модели
         with torch.no_grad():
-            wav2vec_features = self.wav2vec(x_wav2vec).last_hidden_state.mean(dim=1)
+            ser_features = self.ser(x)
+            ser_features = F.max_pool2d(ser_features, (3, 4))
+            ser_features = self.ser_bn(ser_features)
+            ser_features = self.ser_selu(ser_features)
+            
+            # Преобразуем к нужной размерности [batch, features]
+            ser_features = ser_features.mean(dim=(2, 3))  # Адаптируйте под вашу архитектуру
 
-        # 4. Слияние признаков
+        # 3. Слияние признаков
         combined = torch.cat([
             aasist_features,
-            wav2vec_features.to(aasist_features.device)
+            ser_features.to(aasist_features.device)
         ], dim=1)
 
-        return None, self.fusion(self.feature_norm(combined))
+        self.last_hidden_state = self.fc(combined)
+        output = self.fusion(self.feature_norm(combined))
+
+        return self.last_hidden_state, output
 
     @property
     def device(self):
