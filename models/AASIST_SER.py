@@ -1,16 +1,18 @@
 import torch
 import torch.nn as nn
-from .AASIST import *
+from .AASIST import Model
 from transformers import HubertModel, AutoConfig
 
 class AASISTWithEmotion(nn.Module):
     def __init__(self, aasist_config, ser_model_name="facebook/hubert-large-lls60", freeze_ser=True, fusion_dim=256):
         super().__init__()
         # AASIST model
-        self.aasist = AASIST(**aasist_config)
+        print('Trying to upload AASIST')
+        self.aasist = Model(aasist_config)
         if "aasist_path" in aasist_config:
             self.aasist.load_state_dict(torch.load(aasist_config["aasist_path"]))
-        
+
+        print('AASIST done')
         # SER model (HuBERT)
         self.ser_model = HubertModel.from_pretrained(ser_model_name)
         if freeze_ser:
