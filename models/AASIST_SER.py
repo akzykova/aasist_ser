@@ -1,61 +1,76 @@
 import torch
 import torch.nn as nn
+import torchaudio
 from .AASIST import Model
 from transformers import HubertModel, AutoConfig
 
 class AASISTWithEmotion(nn.Module):
     def __init__(self, aasist_config, ser_model_name="facebook/hubert-base-ls960", freeze_ser=True, fusion_dim=256):
         super().__init__()
-        # Инициализация AASIST
-        self.aasist = Model(aasist_config)  # Оригинальный AASIST
-        if "aasist_path" in aasist_config:
-            self.aasist.load_state_dict(torch.load(aasist_config["aasist_path"]))
         
-        # Инициализация HuBERT
+        # 1. Инициализация AASIST
+        self.aasist = Model(aasist_config)
+        if "aasist_path" in aasist_config:
+            state_dict = torch.load(aasist_config["aasist_path"], map_location='cpu')
+            self.aasist.load_state_dict(state_dict)
+        
+        # 2. Инициализация HuBERT
         self.ser_model = HubertModel.from_pretrained(ser_model_name)
+        self.ser_model.eval()
         if freeze_ser:
             for param in self.ser_model.parameters():
                 param.requires_grad = False
         
-        # Определение размерностей
-        with torch.no_grad():
-            dummy_input = torch.randn(1, 1, aasist_config["nb_samp"])
-            aasist_feat_dim = self.aasist(dummy_input).shape[-1]
-            ser_feat_dim = self.ser_model.config.hidden_size
+        # 3. Динамическое определение размерностей
+        self.aasist_feat_dim = self._get_aasist_output_dim(aasist_config)
+        ser_config = AutoConfig.from_pretrained(ser_model_name)
+        self.ser_feat_dim = ser_config.hidden_size
         
-        # Слой слияния признаков
-        self.feature_norm = nn.LayerNorm(aasist_feat_dim + ser_feat_dim)
+        # 4. Слои для объединения признаков
+        self.feature_norm = nn.LayerNorm(self.aasist_feat_dim + self.ser_feat_dim)
         self.fusion = nn.Sequential(
-            nn.Linear(aasist_feat_dim + ser_feat_dim, fusion_dim),
+            nn.Linear(self.aasist_feat_dim + self.ser_feat_dim, fusion_dim),
             nn.ReLU(),
             nn.Dropout(0.2),
             nn.Linear(fusion_dim, 2)
         )
         
-        # Ресемплинг для HuBERT
+        # 5. Ресемплинг
         self.resample = torchaudio.transforms.Resample(
-            orig_freq=16000,  # Будет установлено в forward
+            orig_freq=16000,
             new_freq=16000
         )
 
-    def forward(self, x, Freq_aug=False, sample_rate=16000):
-        # 1. Обработка в AASIST (с поддержкой Freq_aug)
+    def _get_aasist_output_dim(self, config):
+        """Динамически определяет размерность выхода AASIST"""
+        with torch.no_grad():
+            dummy_input = torch.randn(1, 1, config["nb_samp"])
+            output = self.aasist(dummy_input)
+            return output.shape[-1]
+
+    def forward(self, x, Freq_aug=False):
+        # 1. Проверка и корректировка входных данных
+        if x.dim() == 4:
+            x = x.squeeze(1)  # [batch, 1, 1, samples] -> [batch, 1, samples]
+        elif x.dim() == 2:
+            x = x.unsqueeze(1)  # [batch, samples] -> [batch, 1, samples]
+        
+        # 2. Получение признаков AASIST
         aasist_features = self.aasist(x, Freq_aug=Freq_aug)
         
-        # 2. Подготовка аудио для HuBERT
-        if sample_rate != 16000:
-            self.resample.orig_freq = sample_rate
-            x = self.resample(x)
-        
-        # 3. Извлечение эмоциональных признаков
+        # 3. Подготовка и обработка в HuBERT
+        x_hubert = x.squeeze(1)  # [batch, samples]
         with torch.set_grad_enabled(not all(not p.requires_grad for p in self.ser_model.parameters())):
-            ser_outputs = self.ser_model(x.squeeze(1))  # [batch, seq_len, features]
-            ser_features = ser_outputs.last_hidden_state.mean(dim=1)  # [batch, features]
+            ser_features = self.ser_model(x_hubert).last_hidden_state.mean(dim=1)
         
         # 4. Слияние признаков
-        combined = torch.cat([aasist_features, ser_features], dim=1)
-        normalized = self.feature_norm(combined)
-        output = self.fusion(normalized)
+        combined = torch.cat([
+            aasist_features,
+            ser_features.to(aasist_features.device)
+        ], dim=1)
         
-        # Возвращаем в том же формате, что и оригинальный AASIST
-        return None, output  # (features, logits)
+        return None, self.fusion(self.feature_norm(combined))
+
+    @property
+    def device(self):
+        return next(self.parameters()).device
