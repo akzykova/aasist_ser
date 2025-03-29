@@ -33,13 +33,10 @@ class AASISTWithEmotion(nn.Module):
         self.frame_length = int(0.025 * sample_rate)  # 25ms
         self.frame_step = int(0.01 * sample_rate)     # 10ms
 
-        # 4. Слои для обработки выхода SER модели
-        self.ser_bn = nn.BatchNorm1d(num_features=50)
-        self.ser_selu = nn.SELU(inplace=True)
 
         # 5. Определение размерностей
         self.aasist_feat_dim = 5 * aasist_config["gat_dims"][1]
-        self.ser_feat_dim = 256  # Размерность после max_pool2d((3,4))
+        self.ser_feat_dim = 256
 
         # 6. Слои для объединения признаков
         self.feature_norm = nn.LayerNorm(self.aasist_feat_dim + self.ser_feat_dim)
@@ -77,11 +74,6 @@ class AASISTWithEmotion(nn.Module):
         return torch.from_numpy(np.array(batch_features)).float()
 
     def forward(self, x, Freq_aug=False):
-        # x: [batch, time] аудио waveform
-        if x.dim() == 3:
-            x = x.squeeze(1)
-
-        # 1. Извлечение признаков из AASIST
         aasist_last_hidden, aasist_output = self.aasist(x, Freq_aug=Freq_aug)
 
         # 2. Подготовка 3-канальных Mel-фич для SER

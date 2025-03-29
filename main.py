@@ -334,25 +334,6 @@ def train_epoch(
     config: argparse.Namespace):
     """Train the model for one epoch"""
     running_loss = 0
-    num_total = 0.0
-    ii = 0
-    model.train()
-
-    # set objective (Loss) functions
-    weight = torch.FloatTensor([0.1, 0.9]).to(device)
-    criterion = nn.CrossEntropyLoss(weight=weight)
-
-    from tqdm import tqdm  # Добавьте этот импорт в начале файла
-
-def train_epoch(
-    trn_loader: DataLoader,
-    model,
-    optim: Union[torch.optim.SGD, torch.optim.Adam],
-    device: torch.device,
-    scheduler: torch.optim.lr_scheduler,
-    config: argparse.Namespace):
-    """Train the model for one epoch"""
-    running_loss = 0
     ii = 0
     num_total = 0.0
     model.train()
