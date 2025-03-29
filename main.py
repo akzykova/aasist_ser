@@ -148,8 +148,13 @@ def main(args: argparse.Namespace) -> None:
         if best_dev_eer >= dev_eer:
             print("best model find at epoch", epoch)
             best_dev_eer = dev_eer
-            torch.save(model.state_dict(),
-                       model_save_path / "epoch_{}_{:03.3f}.pth".format(epoch, dev_eer))
+
+            classifier_state = {
+                'classifier.weight': model.classifier.weight,
+                'classifier.bias': model.classifier.bias
+            }
+            torch.save(classifier_state,
+               model_save_path / f"epoch_{epoch}_{dev_eer:03.3f}_classifier.pth")
 
             # do evaluation whenever best model is renewed
             if str_to_bool(config["eval_all_best"]):
@@ -211,7 +216,6 @@ def main(args: argparse.Namespace) -> None:
 
 def get_model(model_config: Dict, device: torch.device):
     """Define DNN model architecture"""
-    architecture = model_config["architecture"]
 
     model = AASISTWithEmotion(
             aasist_config=model_config["aasist_config"],
@@ -219,6 +223,11 @@ def get_model(model_config: Dict, device: torch.device):
             freeze_ser=str_to_bool(model_config["ser_config"]["freeze"]),
             fusion_dim=model_config["ser_config"]["fusion"]["hidden_dim"]
         )
+    
+    if "classifier_path" in model_config:
+        classifier_weights = torch.load(model_config["classifier_path"])
+        model.classifier.load_state_dict(classifier_weights)
+        print(f"Loaded classifier weights from {model_config['classifier_path']}")
 
     
     model = model.to(device)
