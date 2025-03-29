@@ -4,19 +4,18 @@ from .AASIST import Model
 from .ACRNN import acrnn  # Предполагается, что ACRNN модель определена где-то
 
 class AASISTWithEmotion(nn.Module):
-    def __init__(self, aasist_config, ser_model_path="./pretrained_models/ser_acrnn.pth", 
+    def __init__(self, aasist_config, ser_config, 
                  freeze_ser=True, fusion_dim=256):
         super().__init__()
 
         # 1. Инициализация AASIST
         self.aasist = Model(aasist_config)
-        if "aasist_path" in aasist_config:
-            state_dict = torch.load(aasist_config["aasist_path"], map_location='cpu')
-            self.aasist.load_state_dict(state_dict)
+        state_dict = torch.load(aasist_config["aasist_path"], map_location='cpu')
+        self.aasist.load_state_dict(state_dict)
 
         # 2. Инициализация SER модели (ACRNN)
         self.ser = acrnn()
-        ser_state_dict = torch.load(ser_model_path, map_location='cpu')
+        ser_state_dict = torch.load(ser_config["ser_path"], map_location='cpu')
         self.ser.load_state_dict(ser_state_dict)
         
         if freeze_ser:

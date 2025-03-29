@@ -214,9 +214,9 @@ def get_model(model_config: Dict, device: torch.device):
 
     model = AASISTWithEmotion(
             aasist_config=model_config["aasist_config"],
-            ser_model_name=model_config["ser_settings"]["model_name"],
-            freeze_ser=str_to_bool(model_config["ser_settings"]["freeze"]),
-            fusion_dim=model_config["ser_settings"]["fusion"]["hidden_dim"]
+            ser_config=model_config["ser_config"],
+            freeze_ser=str_to_bool(model_config["ser_config"]["freeze"]),
+            fusion_dim=model_config["ser_config"]["fusion"]["hidden_dim"]
         )
 
     
