@@ -2,13 +2,15 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchaudio
+import python_speech_features as ps
+import numpy as np
 from .AASIST import Model
 from .ACRNN import acrnn
 
 class AASISTWithEmotion(nn.Module):
     def __init__(self, aasist_config, ser_config, 
                  freeze_ser=True, fusion_dim=256,
-                 n_mels=64, sample_rate=16000):
+                 n_mels=40, sample_rate=16000):
         super().__init__()
         
         # 1. Инициализация AASIST
@@ -16,7 +18,7 @@ class AASISTWithEmotion(nn.Module):
         state_dict = torch.load(aasist_config["aasist_path"], map_location='cpu')
         self.aasist.load_state_dict(state_dict)
 
-        # 2. Инициализация SER модели (ACRNN)
+        # 2. Инициализация SER модели (ACRNN) - оставляем оригинальную 3-канальную версию
         self.ser = acrnn()
         ser_state_dict = torch.load(ser_config["ser_path"], map_location='cpu')
         self.ser.load_state_dict(ser_state_dict)
@@ -25,16 +27,11 @@ class AASISTWithEmotion(nn.Module):
             for param in self.ser.parameters():
                 param.requires_grad = False
 
-        # 3. Преобразование в Mel-спектрограмму
-        self.to_spectrogram = torchaudio.transforms.MelSpectrogram(
-            sample_rate=sample_rate,
-            n_fft=512,
-            win_length=400,
-            hop_length=160,
-            n_mels=n_mels,
-            power=2  # Используем power=2 для совместимости с AmplitudeToDB
-        )
-        self.to_db = torchaudio.transforms.AmplitudeToDB()
+        # 3. Параметры для Mel-спектрограмм
+        self.n_mels = n_mels
+        self.sample_rate = sample_rate
+        self.frame_length = int(0.025 * sample_rate)  # 25ms
+        self.frame_step = int(0.01 * sample_rate)     # 10ms
 
         # 4. Слои для обработки выхода SER модели
         self.ser_bn = nn.BatchNorm1d(num_features=50)
@@ -53,25 +50,50 @@ class AASISTWithEmotion(nn.Module):
             nn.Linear(fusion_dim, 2)
         )
 
-    def forward(self, x, Freq_aug=False):
-        # x: [batch, time] или [batch, channels, time]
-        if x.dim() == 3:
-            x = x.squeeze(1)  # Удаляем ось каналов, если есть
+    def extract_mel_features(self, x):
+        """Аналог оригинального метода extract_mel с python_speech_features"""
+        # x: [batch, time] numpy array
+        batch_features = []
+        for waveform in x:
+            # Конвертируем в numpy если нужно
+            if torch.is_tensor(waveform):
+                waveform = waveform.cpu().numpy()
+            
+            # Вычисляем 3 канала
+            mel_spec = ps.logfbank(waveform, samplerate=self.sample_rate, nfilt=self.n_mels,
+                                 winlen=0.025, winstep=0.01)
+            delta1 = ps.delta(mel_spec, 2)
+            delta2 = ps.delta(delta1, 2)
+            
+            # Обрезаем до 300 кадров как в оригинале
+            mel_spec = mel_spec[:300]
+            delta1 = delta1[:300]
+            delta2 = delta2[:300]
+            
+            # Собираем 3 канала
+            features = np.stack([mel_spec, delta1, delta2], axis=0)  # [3, 300, n_mels]
+            batch_features.append(features)
+        
+        return torch.from_numpy(np.array(batch_features)).float()
 
-        # 1. Извлечение признаков из AASIST (работает с waveform)
+    def forward(self, x, Freq_aug=False):
+        # x: [batch, time] аудио waveform
+        if x.dim() == 3:
+            x = x.squeeze(1)
+
+        # 1. Извлечение признаков из AASIST
         aasist_features = self.aasist(x, Freq_aug=Freq_aug)
 
-        # 2. Преобразуем waveform в Mel-спектрограмму для SER
+        # 2. Подготовка 3-канальных Mel-фич для SER
         with torch.no_grad():
-            # Вычисляем спектрограмму и переводим в dB
-            mel_spec = self.to_spectrogram(x)  # [batch, n_mels, time]
-            log_mel_spec = self.to_db(mel_spec)
+            # Конвертируем в numpy для python_speech_features
+            x_np = x.cpu().numpy() if x.is_cuda else x.numpy()
             
-            # Добавляем ось каналов для conv2d: [batch, 1, n_mels, time]
-            log_mel_spec = log_mel_spec.unsqueeze(1)
+            # Получаем 3-канальные фичи [batch, 3, 300, n_mels]
+            mel_features = self.extract_mel_features(x_np).to(x.device)
             
             # Извлекаем SER-эмбеддинги
-            ser_features = self.ser(log_mel_spec)
+            ser_features = self.ser(mel_features)
             ser_features = F.max_pool2d(ser_features, (3, 4))
             ser_features = self.ser_bn(ser_features)
             ser_features = self.ser_selu(ser_features)

@@ -91,4 +91,4 @@ class acrnn(nn.Module):
         # Ylogits = self.fc2(fully1)
         # Ylogits = self.softmax(Ylogits)
 
-        return gru#outputs1#, gru
+        return gru
