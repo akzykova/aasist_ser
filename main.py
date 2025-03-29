@@ -16,7 +16,6 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from torchcontrib.optim import SWA
 
 from data_utils import (Dataset_ASVspoof2019_train,
                         Dataset_ASVspoof2019_devNeval, genSpoof_list)
@@ -112,13 +111,11 @@ def main(args: argparse.Namespace) -> None:
     # get optimizer and scheduler
     optim_config["steps_per_epoch"] = len(trn_loader)
     optimizer, scheduler = create_optimizer(model.parameters(), optim_config)
-    optimizer_swa = SWA(optimizer)
 
     best_dev_eer = 1.
     best_eval_eer = 100.
     best_dev_tdcf = 0.05
     best_eval_tdcf = 1.
-    n_swa_update = 0  # number of snapshots of model to use in SWA
     f_log = open(model_tag / "metric_log.txt", "a")
     f_log.write("=" * 5 + "\n")
 
@@ -145,92 +142,64 @@ def main(args: argparse.Namespace) -> None:
         writer.add_scalar("dev_tdcf", dev_tdcf, epoch)
 
         best_dev_tdcf = min(dev_tdcf, best_dev_tdcf)
+
         if best_dev_eer >= dev_eer:
             print("best model find at epoch", epoch)
             best_dev_eer = dev_eer
 
             classifier_state = {
                 'classifier.weight': model.classifier.weight,
-                'classifier.bias': model.classifier.bias
+                'classifier.bias': model.classifier.bias,
+                'feature_norm.weight': model.feature_norm.weight,  # Добавляем
+                'feature_norm.bias': model.feature_norm.bias       # параметры нормализации
             }
             torch.save(classifier_state,
                model_save_path / f"epoch_{epoch}_{dev_eer:03.3f}_classifier.pth")
 
-            # do evaluation whenever best model is renewed
-            if str_to_bool(config["eval_all_best"]):
-                produce_evaluation_file(eval_loader, model, device,
-                                        eval_score_path, eval_trial_path)
-                eval_eer, eval_tdcf = calculate_tDCF_EER(
-                    cm_scores_file=eval_score_path,
-                    asv_score_file=database_path / config["asv_score_path"],
-                    output_file=metric_path /
-                    "t-DCF_EER_{:03d}epo.txt".format(epoch))
-
-                log_text = "epoch{:03d}, ".format(epoch)
-                if eval_eer < best_eval_eer:
-                    log_text += "best eer, {:.4f}%".format(eval_eer)
-                    best_eval_eer = eval_eer
-                if eval_tdcf < best_eval_tdcf:
-                    log_text += "best tdcf, {:.4f}".format(eval_tdcf)
-                    best_eval_tdcf = eval_tdcf
-                    torch.save(model.state_dict(),
-                               model_save_path / "best.pth")
-                if len(log_text) > 0:
-                    print(log_text)
-                    f_log.write(log_text + "\n")
-
-            print("Saving epoch {} for swa".format(epoch))
-            optimizer_swa.update_swa()
-            n_swa_update += 1
         writer.add_scalar("best_dev_eer", best_dev_eer, epoch)
         writer.add_scalar("best_dev_tdcf", best_dev_tdcf, epoch)
-
-    print("Start final evaluation")
-    epoch += 1
-    if n_swa_update > 0:
-        optimizer_swa.swap_swa_sgd()
-        optimizer_swa.bn_update(trn_loader, model, device=device)
-    produce_evaluation_file(eval_loader, model, device, eval_score_path,
-                            eval_trial_path)
-    eval_eer, eval_tdcf = calculate_tDCF_EER(cm_scores_file=eval_score_path,
-                                             asv_score_file=database_path /
-                                             config["asv_score_path"],
-                                             output_file=model_tag / "t-DCF_EER.txt")
-    f_log = open(model_tag / "metric_log.txt", "a")
-    f_log.write("=" * 5 + "\n")
-    f_log.write("EER: {:.3f}, min t-DCF: {:.5f}".format(eval_eer, eval_tdcf))
-    f_log.close()
-
-    torch.save(model.state_dict(),
-               model_save_path / "swa.pth")
-
-    if eval_eer <= best_eval_eer:
-        best_eval_eer = eval_eer
-    if eval_tdcf <= best_eval_tdcf:
-        best_eval_tdcf = eval_tdcf
-        torch.save(model.state_dict(),
-                   model_save_path / "best.pth")
-    print("Exp FIN. EER: {:.3f}, min t-DCF: {:.5f}".format(
-        best_eval_eer, best_eval_tdcf))
+    print('End of training')
 
 
-def get_model(model_config: Dict, device: torch.device):
-    """Define DNN model architecture"""
-
+def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
+    """Define and initialize DNN model with optional pretrained classifier
+    
+    Args:
+        model_config: Dictionary containing:
+            - aasist_config: Config for AASIST model
+            - ser_config: Config for SER model
+            - classifier_path (optional): Path to pretrained classifier weights
+        device: Target device (cpu/cuda)
+    
+    Returns:
+        Initialized AASISTWithEmotion model
+    """
+    # 1. Initialize model
     model = AASISTWithEmotion(
-            aasist_config=model_config["aasist_config"],
-            ser_config=model_config["ser_config"]
-        )
+        aasist_config=model_config["aasist_config"],
+        ser_config=model_config["ser_config"]
+    ).to(device)
     
     if "classifier_path" in model_config:
-        classifier_weights = torch.load(model_config["classifier_path"])
-        model.classifier.load_state_dict(classifier_weights)
-        print(f"Loaded classifier weights from {model_config['classifier_path']}")
-
+        print(f"Loading classifier weights from {model_config['classifier_path']}")
+        try:
+            state_dict = torch.load(model_config["classifier_path"], map_location=device)
+            
+            if 'classifier' in state_dict:
+                model.classifier.load_state_dict(state_dict['classifier'])
+            if 'feature_norm' in state_dict and hasattr(model, 'feature_norm'):
+                model.feature_norm.load_state_dict(state_dict['feature_norm'])
+            
+            print("Successfully loaded classifier weights")
+        except Exception as e:
+            print(f"Error loading classifier weights: {str(e)}")
+            raise
     
-    model = model.to(device)
-    nb_params = sum([param.view(-1).size()[0] for param in model.parameters()])
-    print(f"Model parameters: {nb_params}")
+    # 3. Print model info
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    total_params = sum(p.numel() for p in model.parameters())
+    print(f"Model parameters: {total_params:,} (Trainable: {trainable_params:,})")
+    
     return model
 
 
