@@ -96,8 +96,8 @@ class AASISTWithEmotion(nn.Module):
             ser_features = self.ser(mel_features)
 
         # 3. Слияние признаков
-        print("AASIST hidden shape:", aasist_last_hidden.shape)
-        print("SER features shape:", ser_features.shape)
+        # print("AASIST hidden shape:", aasist_last_hidden.shape)
+        # print("SER features shape:", ser_features.shape)
 
         combined = torch.cat([aasist_last_hidden, ser_features], dim=1)
         combined = self.feature_norm(combined)
