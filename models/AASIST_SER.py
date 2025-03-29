@@ -39,7 +39,7 @@ class AASISTWithEmotion(nn.Module):
 
         # 5. Определение размерностей
         self.aasist_feat_dim = 5 * aasist_config["gat_dims"][1]
-        self.ser_feat_dim = 64  # Размерность после max_pool2d((3,4))
+        self.ser_feat_dim = 256  # Размерность после max_pool2d((3,4))
 
         # 6. Слои для объединения признаков
         self.feature_norm = nn.LayerNorm(self.aasist_feat_dim + self.ser_feat_dim)
