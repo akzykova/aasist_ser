@@ -82,7 +82,7 @@ class AASISTWithEmotion(nn.Module):
             x = x.squeeze(1)
 
         # 1. Извлечение признаков из AASIST
-        aasist_features = self.aasist(x, Freq_aug=Freq_aug)
+        aasist_last_hidden, aasist_output = self.aasist(x, Freq_aug=Freq_aug)
 
         # 2. Подготовка 3-канальных Mel-фич для SER
         with torch.no_grad():
@@ -99,7 +99,7 @@ class AASISTWithEmotion(nn.Module):
             ser_features = self.ser_selu(ser_features)
 
         # 3. Слияние признаков
-        combined = torch.cat([aasist_features, ser_features], dim=1)
+        combined = torch.cat([aasist_last_hidden, ser_features], dim=1)
         combined = self.feature_norm(combined)
         
         # 4. Классификация
