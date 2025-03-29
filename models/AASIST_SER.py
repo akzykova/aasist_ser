@@ -8,8 +8,7 @@ from .AASIST import Model
 from .ACRNN import acrnn
 
 class AASISTWithEmotion(nn.Module):
-    def __init__(self, aasist_config, ser_config, 
-                 freeze_ser=True, n_mels=40, sample_rate=16000):
+    def __init__(self, aasist_config, ser_config, n_mels=40, sample_rate=16000):
         super().__init__()
         
         # 1. Загрузка AASIST (полная заморозка)
