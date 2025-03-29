@@ -353,6 +353,7 @@ def train_epoch(
     config: argparse.Namespace):
     """Train the model for one epoch"""
     running_loss = 0
+    ii = 0
     num_total = 0.0
     model.train()
 
