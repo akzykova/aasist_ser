@@ -28,6 +28,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 
 from models.AASIST_SER import AASISTWithEmotion
 
+from tqdm import tqdm
 
 def main(args: argparse.Namespace) -> None:
     """
@@ -340,7 +341,28 @@ def train_epoch(
     # set objective (Loss) functions
     weight = torch.FloatTensor([0.1, 0.9]).to(device)
     criterion = nn.CrossEntropyLoss(weight=weight)
-    for batch_x, batch_y in trn_loader:
+
+    from tqdm import tqdm  # Добавьте этот импорт в начале файла
+
+def train_epoch(
+    trn_loader: DataLoader,
+    model,
+    optim: Union[torch.optim.SGD, torch.optim.Adam],
+    device: torch.device,
+    scheduler: torch.optim.lr_scheduler,
+    config: argparse.Namespace):
+    """Train the model for one epoch"""
+    running_loss = 0
+    num_total = 0.0
+    model.train()
+
+    # set objective (Loss) functions
+    weight = torch.FloatTensor([0.1, 0.9]).to(device)
+    criterion = nn.CrossEntropyLoss(weight=weight)
+
+    pbar = tqdm(trn_loader, desc="Training", leave=False)
+
+    for batch_x, batch_y in pbar:
         batch_size = batch_x.size(0)
         num_total += batch_size
         ii += 1
@@ -359,6 +381,11 @@ def train_epoch(
             pass
         else:
             raise ValueError("scheduler error, got:{}".format(scheduler))
+        
+        pbar.set_postfix({
+            'loss': batch_loss.item(),
+            'lr': optim.param_groups[0]['lr']
+        })
 
     running_loss /= num_total
     return running_loss
