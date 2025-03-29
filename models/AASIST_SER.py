@@ -13,19 +13,19 @@ class AASISTWithEmotion(nn.Module):
                  n_mels=40, sample_rate=16000):
         super().__init__()
         
-        # 1. Инициализация AASIST
+        # 1. Загрузка AASIST (полная заморозка)
         self.aasist = Model(aasist_config)
-        state_dict = torch.load(aasist_config["aasist_path"], map_location='cpu')
-        self.aasist.load_state_dict(state_dict)
+        self.aasist.load_state_dict(torch.load(aasist_config["aasist_path"]))
+        self.aasist.eval()  # Отключает Dropout/BatchNorm в inference режиме
+        for p in self.aasist.parameters():
+            p.requires_grad = False
 
-        # 2. Инициализация SER модели (ACRNN) - оставляем оригинальную 3-канальную версию
+        # 2. Загрузка SER (полная заморозка)
         self.ser = acrnn()
-        ser_state_dict = torch.load(ser_config["ser_path"], map_location='cpu')
-        self.ser.load_state_dict(ser_state_dict)
-        
-        if freeze_ser:
-            for param in self.ser.parameters():
-                param.requires_grad = False
+        self.ser.load_state_dict(torch.load(ser_config["ser_path"]))
+        self.ser.eval()
+        for p in self.ser.parameters():
+            p.requires_grad = False
 
         # 3. Параметры для Mel-спектрограмм
         self.n_mels = n_mels
