@@ -97,7 +97,6 @@ class AASISTWithEmotion(nn.Module):
             ser_features = F.max_pool2d(ser_features, (3, 4))
             ser_features = self.ser_bn(ser_features)
             ser_features = self.ser_selu(ser_features)
-            ser_features = ser_features.mean(dim=(2, 3))  # [batch, ser_feat_dim]
 
         # 3. Слияние признаков
         combined = torch.cat([aasist_features, ser_features], dim=1)
