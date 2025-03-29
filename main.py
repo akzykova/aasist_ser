@@ -126,38 +126,19 @@ def main(args: argparse.Namespace) -> None:
     # Training
     for epoch in range(config["num_epochs"]):
         print("Start training epoch{:03d}".format(epoch))
-        running_loss = train_epoch(trn_loader, model, optimizer, device,
+        _ = train_epoch(trn_loader, model, optimizer, device,
                                    scheduler, config)
-        produce_evaluation_file(dev_loader, model, device,
-                                metric_path/"dev_score.txt", dev_trial_path)
-        dev_eer, dev_tdcf = calculate_tDCF_EER(
-            cm_scores_file=metric_path/"dev_score.txt",
-            asv_score_file=database_path/config["asv_score_path"],
-            output_file=metric_path/"dev_t-DCF_EER_{}epo.txt".format(epoch),
-            printout=False)
-        print("DONE.\nLoss:{:.5f}, dev_eer: {:.3f}, dev_tdcf:{:.5f}".format(
-            running_loss, dev_eer, dev_tdcf))
-        writer.add_scalar("loss", running_loss, epoch)
-        writer.add_scalar("dev_eer", dev_eer, epoch)
-        writer.add_scalar("dev_tdcf", dev_tdcf, epoch)
 
-        best_dev_tdcf = min(dev_tdcf, best_dev_tdcf)
+        classifier_state = {
+            'classifier.weight': model.classifier.weight,
+            'classifier.bias': model.classifier.bias,
+            'feature_norm.weight': model.feature_norm.weight,  # Добавляем
+            'feature_norm.bias': model.feature_norm.bias       # параметры нормализации
+        }
 
-        if best_dev_eer >= dev_eer:
-            print("best model find at epoch", epoch)
-            best_dev_eer = dev_eer
+        torch.save(classifier_state,
+            model_save_path / f"epoch_{epoch}_classifier.pth")
 
-            classifier_state = {
-                'classifier.weight': model.classifier.weight,
-                'classifier.bias': model.classifier.bias,
-                'feature_norm.weight': model.feature_norm.weight,  # Добавляем
-                'feature_norm.bias': model.feature_norm.bias       # параметры нормализации
-            }
-            torch.save(classifier_state,
-               model_save_path / f"epoch_{epoch}_{dev_eer:03.3f}_classifier.pth")
-
-        writer.add_scalar("best_dev_eer", best_dev_eer, epoch)
-        writer.add_scalar("best_dev_tdcf", best_dev_tdcf, epoch)
     print('End of training')
 
 
