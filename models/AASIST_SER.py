@@ -94,11 +94,11 @@ class AASISTWithEmotion(nn.Module):
             
             # Извлекаем SER-эмбеддинги
             ser_features = self.ser(mel_features)
-            ser_features = F.max_pool2d(ser_features, (3, 4))
-            ser_features = self.ser_bn(ser_features)
-            ser_features = self.ser_selu(ser_features)
 
         # 3. Слияние признаков
+        print("AASIST hidden shape:", aasist_last_hidden.shape)
+        print("SER features shape:", ser_features.shape)
+
         combined = torch.cat([aasist_last_hidden, ser_features], dim=1)
         combined = self.feature_norm(combined)
         

@@ -82,7 +82,7 @@ class acrnn(nn.Module):
         # # # attention
         v = self.sigmoid(self.a_fc1(outputs1))                  # (10, 150, 1)
         alphas = self.softmax(self.a_fc2(v).squeeze())          # (B,T) shape, alphas are attention weights
-        gru = (alphas.unsqueeze(2) * outputs1)
+        gru = (alphas.unsqueeze(2) * outputs1).sum(axis = 1)
         # gru = (alphas.unsqueeze(2) * outputs1).sum(axis=1)      # (B,D)
         
         # # # fc
