@@ -34,8 +34,8 @@ class AASISTWithEmotion(nn.Module):
         self.aasist_feat_dim = 5 * aasist_config["gat_dims"][1]
         self.ser_feat_dim = 256
 
-        # 5. Классификатор с нормализацией
-        self.feature_norm = nn.LayerNorm(self.aasist_feat_dim + self.ser_feat_dim)
+        self.aasist_norm = nn.LayerNorm(self.aasist_feat_dim)
+        self.ser_norm = nn.LayerNorm(self.ser_feat_dim)          
         self.classifier = nn.Linear(self.aasist_feat_dim + self.ser_feat_dim, 2)
 
     def extract_mel_features(self, x):
@@ -66,13 +66,17 @@ class AASISTWithEmotion(nn.Module):
         with torch.no_grad():
             aasist_feat, _ = self.aasist(x, Freq_aug=Freq_aug)
             
+            # Переносим вычисления Mel-фич на GPU, если доступно
             x_np = x.cpu().numpy() if x.is_cuda else x.numpy()
             mel_features = self.extract_mel_features(x_np).to(x.device)
             ser_feat = self.ser(mel_features)
 
+        # 2. Нормализуем признаки отдельно
+        aasist_feat = self.aasist_norm(aasist_feat)
+        ser_feat = self.ser_norm(ser_feat)
+        
         # 3. Конкатенация и классификация
         combined = torch.cat([aasist_feat, ser_feat], dim=1)
-        combined = self.feature_norm(combined)
         output = self.classifier(combined)
         
         return combined, output

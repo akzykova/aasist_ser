@@ -106,8 +106,13 @@ def main(args: argparse.Namespace) -> None:
         sys.exit(0)
 
     # get optimizer and scheduler
+    # Получаем только обучаемые параметры (нормализация и классификатор)
+    trainable_params = list(model.aasist_norm.parameters()) + \
+                    list(model.ser_norm.parameters()) + \
+                    list(model.classifier.parameters())
+
     optim_config["steps_per_epoch"] = len(trn_loader)
-    optimizer, scheduler = create_optimizer(model.parameters(), optim_config)
+    optimizer, scheduler = create_optimizer(trainable_params, optim_config)
 
     best_dev_eer = 1.
     best_eval_eer = 100.
@@ -140,12 +145,14 @@ def main(args: argparse.Namespace) -> None:
         if best_dev_eer >= dev_eer:
             print("best model find at epoch", epoch)
             best_dev_eer = dev_eer
-            
+
         classifier_state = {
             'classifier.weight': model.classifier.weight,
             'classifier.bias': model.classifier.bias,
-            'feature_norm.weight': model.feature_norm.weight,  # Добавляем
-            'feature_norm.bias': model.feature_norm.bias       # параметры нормализации
+            'aasist_norm.weight': model.aasist_norm.weight,  # Параметры нормализации AASIST
+            'aasist_norm.bias': model.aasist_norm.bias,
+            'ser_norm.weight': model.ser_norm.weight,        # Параметры нормализации SER
+            'ser_norm.bias': model.ser_norm.bias
         }
 
         torch.save(classifier_state,
@@ -310,6 +317,16 @@ def train_epoch(
         running_loss += batch_loss.item() * batch_size
         optim.zero_grad()
         batch_loss.backward()
+
+        grad_weight = model.classifier.weight.grad
+        grad_bias = model.classifier.bias.grad
+        print(
+            f"Градиенты classifier:\n"
+            f"  weight: mean={grad_weight.mean():.6f}, std={grad_weight.std():.6f}\n"
+            f"  bias: mean={grad_bias.mean():.6f}, std={grad_bias.std():.6f}"
+        )
+
+
         optim.step()
 
         if config["optim_config"]["scheduler"] in ["cosine", "keras_decay"]:
