@@ -91,9 +91,6 @@ def main(args: argparse.Namespace) -> None:
 
     # evaluates pretrained model and exit script
     if args.eval:
-        model.load_state_dict(
-            torch.load(config["model_path"], map_location=device))
-        print("Model loaded : {}".format(config["model_path"]))
         print("Start evaluation...")
         produce_evaluation_file(eval_loader, model, device,
                                 eval_score_path, eval_trial_path)
@@ -126,9 +123,24 @@ def main(args: argparse.Namespace) -> None:
     # Training
     for epoch in range(config["num_epochs"]):
         print("Start training epoch{:03d}".format(epoch))
-        _ = train_epoch(trn_loader, model, optimizer, device,
+        running_loss = train_epoch(trn_loader, model, optimizer, device,
                                    scheduler, config)
-
+        produce_evaluation_file(dev_loader, model, device,
+                                metric_path/"dev_score.txt", dev_trial_path)
+        dev_eer, dev_tdcf = calculate_tDCF_EER(
+            cm_scores_file=metric_path/"dev_score.txt",
+            asv_score_file=database_path/config["asv_score_path"],
+            output_file=metric_path/"dev_t-DCF_EER_{}epo.txt".format(epoch),
+            printout=False)
+        
+        print("DONE.\nLoss:{:.5f}, dev_eer: {:.3f}, dev_tdcf:{:.5f}".format(
+            running_loss, dev_eer, dev_tdcf))
+        
+        best_dev_tdcf = min(dev_tdcf, best_dev_tdcf)
+        if best_dev_eer >= dev_eer:
+            print("best model find at epoch", epoch)
+            best_dev_eer = dev_eer
+            
         classifier_state = {
             'classifier.weight': model.classifier.weight,
             'classifier.bias': model.classifier.bias,
@@ -143,19 +155,6 @@ def main(args: argparse.Namespace) -> None:
 
 
 def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
-    """Define and initialize DNN model with optional pretrained classifier
-    
-    Args:
-        model_config: Dictionary containing:
-            - aasist_config: Config for AASIST model
-            - ser_config: Config for SER model
-            - classifier_path (optional): Path to pretrained classifier weights
-        device: Target device (cpu/cuda)
-    
-    Returns:
-        Initialized AASISTWithEmotion model
-    """
-    # 1. Initialize model
     model = AASISTWithEmotion(
         aasist_config=model_config["aasist_config"],
         ser_config=model_config["ser_config"]
@@ -176,7 +175,6 @@ def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
             print(f"Error loading classifier weights: {str(e)}")
             raise
     
-    # 3. Print model info
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     total_params = sum(p.numel() for p in model.parameters())
     print(f"Model parameters: {total_params:,} (Trainable: {trainable_params:,})")
@@ -346,7 +344,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--seed",
                         type=int,
-                        default=1234,
+                        default=42,
                         help="random seed (default: 1234)")
     parser.add_argument(
         "--eval",
