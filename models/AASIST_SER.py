@@ -38,6 +38,23 @@ class AASISTWithEmotion(nn.Module):
         self.ser_norm = nn.LayerNorm(self.ser_feat_dim)          
         self.classifier = nn.Linear(self.aasist_feat_dim + self.ser_feat_dim, 2)
 
+        self._init_weights()
+
+    def _init_weights(self):
+        """Инициализация весов обучаемых слоев"""
+        # Для LayerNorm стандартная инициализация обычно хороша
+        # Но можно переинициализировать, если нужно
+        with torch.no_grad():
+            # Инициализация классификатора
+            nn.init.kaiming_normal_(self.classifier.weight, mode='fan_out', nonlinearity='relu')
+            nn.init.constant_(self.classifier.bias, 0.0)
+            
+            # Дополнительно: инициализация LayerNorm (обычно не требуется)
+            nn.init.ones_(self.aasist_norm.weight)
+            nn.init.zeros_(self.aasist_norm.bias)
+            nn.init.ones_(self.ser_norm.weight)
+            nn.init.zeros_(self.ser_norm.bias)
+
     def extract_mel_features(self, x):
          """Извлечение Mel-фич с python_speech_features"""
          batch_features = []
