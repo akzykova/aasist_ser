@@ -95,8 +95,6 @@ def main(args: argparse.Namespace) -> None:
         produce_evaluation_file(eval_loader, model, device,
                                 eval_score_path, eval_trial_path)
         calculate_tDCF_EER(cm_scores_file=eval_score_path,
-                           asv_score_file=database_path /
-                           config["asv_score_path"],
                            output_file=model_tag / "t-DCF_EER.txt")
         print("DONE.")
         eval_eer, eval_tdcf = calculate_tDCF_EER(
