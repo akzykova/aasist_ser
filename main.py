@@ -103,16 +103,28 @@ def main(args: argparse.Namespace) -> None:
             cm_scores_file=eval_score_path,
             asv_score_file=database_path / config["asv_score_path"],
             output_file=model_tag/"loaded_model_t-DCF_EER.txt")
+        print(eval_eer, eval_tdcf)
         sys.exit(0)
 
-    # get optimizer and scheduler
-    # Получаем только обучаемые параметры (нормализация и классификатор)
-    trainable_params = list(model.aasist_norm.parameters()) + \
-                    list(model.ser_norm.parameters()) + \
-                    list(model.classifier.parameters())
+    optimizer = torch.optim.Adam(
+        [
+            {'params': model.aasist_norm.parameters()},
+            {'params': model.ser_norm.parameters()},
+            {'params': model.classifier.parameters()}
+        ],
+        lr=optim_config["base_lr"],
+        betas=tuple(optim_config["betas"]),
+        weight_decay=optim_config["weight_decay"],
+        amsgrad=optim_config["amsgrad"]
+    )
 
-    optim_config["steps_per_epoch"] = len(trn_loader)
-    optimizer, scheduler = create_optimizer(trainable_params, optim_config)
+    # Инициализация scheduler (если используется)
+    if optim_config["scheduler"] == "cosine":
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer,
+            T_max=10,  # Общее количество эпох
+            eta_min=optim_config["lr_min"]
+        )
 
     best_dev_eer = 1.
     best_eval_eer = 100.
@@ -134,7 +146,6 @@ def main(args: argparse.Namespace) -> None:
                                 metric_path/"dev_score.txt", dev_trial_path)
         dev_eer, dev_tdcf = calculate_tDCF_EER(
             cm_scores_file=metric_path/"dev_score.txt",
-            asv_score_file=database_path/config["asv_score_path"],
             output_file=metric_path/"dev_t-DCF_EER_{}epo.txt".format(epoch),
             printout=False)
         
@@ -172,12 +183,27 @@ def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
         try:
             state_dict = torch.load(model_config["classifier_path"], map_location=device)
             
-            if 'classifier' in state_dict:
-                model.classifier.load_state_dict(state_dict['classifier'])
-            if 'feature_norm' in state_dict and hasattr(model, 'feature_norm'):
-                model.feature_norm.load_state_dict(state_dict['feature_norm'])
+            # Загружаем classifier (если есть в state_dict)
+            if 'classifier.weight' in state_dict:
+                model.classifier.load_state_dict({
+                    'weight': state_dict['classifier.weight'],
+                    'bias': state_dict['classifier.bias']
+                })
             
-            print("Successfully loaded classifier weights")
+            # Загружаем LayerNorm для AASIST и SER
+            if 'aasist_norm.weight' in state_dict:
+                model.aasist_norm.load_state_dict({
+                    'weight': state_dict['aasist_norm.weight'],
+                    'bias': state_dict['aasist_norm.bias']
+                })
+            
+            if 'ser_norm.weight' in state_dict:
+                model.ser_norm.load_state_dict({
+                    'weight': state_dict['ser_norm.weight'],
+                    'bias': state_dict['ser_norm.bias']
+                })
+            
+            print("Successfully loaded classifier and LayerNorm weights")
         except Exception as e:
             print(f"Error loading classifier weights: {str(e)}")
             raise
