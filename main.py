@@ -295,7 +295,10 @@ def produce_evaluation_file(
         trial_lines = f_trl.readlines()
     fname_list = []
     score_list = []
-    for batch_x, utt_id in data_loader:
+
+    pbar = tqdm(data_loader, desc="Evaluating", leave=False)
+
+    for batch_x, utt_id in pbar:
         batch_x = batch_x.to(device)
         with torch.no_grad():
             _, batch_out = model(batch_x)
