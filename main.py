@@ -334,15 +334,6 @@ def train_epoch(
         optim.zero_grad()
         batch_loss.backward()
 
-        grad_weight = model.classifier.weight.grad
-        grad_bias = model.classifier.bias.grad
-        print(
-            f"Градиенты classifier:\n"
-            f"  weight: mean={grad_weight.mean():.6f}, std={grad_weight.std():.6f}\n"
-            f"  bias: mean={grad_bias.mean():.6f}, std={grad_bias.std():.6f}"
-        )
-
-
         optim.step()
         
         pbar.set_postfix({
