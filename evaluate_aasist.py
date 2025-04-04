@@ -167,9 +167,9 @@ def main(args: argparse.Namespace) -> None:
 
     results_df = pd.DataFrame({
         'id': fname_list,
-        'source': src,
-        'label': key,
-        'score': sco
+        'source': score_list,
+        'label': label_list,
+        'score': src_list
     })
 
     print(results_df.head(10))
