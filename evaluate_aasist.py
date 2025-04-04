@@ -126,7 +126,7 @@ def main(args: argparse.Namespace) -> None:
     # define dataloaders
     _, _, eval_loader = get_loader(
         database_path, args.seed, config)
-    
+    eval_score_path = model_tag / config["eval_output"]
 
 
     print("Start evaluation...")
@@ -135,6 +135,12 @@ def main(args: argparse.Namespace) -> None:
         database_path /
         "ASVspoof2019_{}_cm_protocols/{}.cm.eval.trl.txt".format(
             track, prefix_2019))
+    
+
+    produce_evaluation_file(eval_loader, model, device,
+                            eval_score_path, eval_trial_path)
+    
+
     
     with open(eval_trial_path, "r") as f_trl:
         trial_lines = f_trl.readlines()
@@ -153,17 +159,13 @@ def main(args: argparse.Namespace) -> None:
         fname_list.extend(utt_id)
         score_list.extend(batch_score.tolist())
 
-    assert len(trial_lines) == len(fname_list) == len(score_list)
-    eval_score_path = model_tag / config["eval_output"]
 
-    with open(eval_score_path, "w") as fh:
-        for fn, sco, trl in zip(fname_list, score_list, trial_lines):
-            _, utt_id, _, src, key = trl.strip().split(' ')
-            assert fn == utt_id
-            fh.write("{} {} {} {}\n".format(utt_id, src, key, sco))
+    for fn, sco, trl in zip(fname_list, score_list, trial_lines):
+        _, utt_id, _, src, key = trl.strip().split(' ')
+        assert fn == utt_id
 
-            label_list.append(key)
-            src_list.append(src)
+        label_list.append(key)
+        src_list.append(src)
 
     results_df = pd.DataFrame({
         'id': fname_list,
@@ -172,7 +174,7 @@ def main(args: argparse.Namespace) -> None:
         'score': src_list
     })
 
-    print(results_df.head(10))
+    print(results_df.head(30))
 
     bona_scores = results_df[results_df['label'] == 'bonafide']['score'].values
     spoof_scores = results_df[results_df['label'] == 'spoof']['score'].values
