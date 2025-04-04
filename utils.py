@@ -141,7 +141,7 @@ def seed_worker(worker_id):
     random.seed(worker_seed)
 
 
-def set_seed(seed, config = None):
+def set_seed(seed = 42, config = None):
     """ 
     set initial seed for reproduction
     """
