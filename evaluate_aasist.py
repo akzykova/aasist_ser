@@ -179,7 +179,7 @@ def main(args: argparse.Namespace) -> None:
 def get_model(aasist_config: Dict, device: torch.device) -> Model:
     model = Model(aasist_config)
     model.load_state_dict(torch.load(aasist_config["aasist_path"]))
-
+    model = model.to(device)
 
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     total_params = sum(p.numel() for p in model.parameters())
