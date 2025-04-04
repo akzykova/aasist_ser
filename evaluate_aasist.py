@@ -154,11 +154,10 @@ def main(args: argparse.Namespace) -> None:
         fname_list.extend(utt_id)
         score_list.extend(batch_score.tolist())
 
-        for fn, trl in zip(utt_id, trial_lines):
-            _, utt_id, _, src, key = trl.strip().split(' ')
-            assert fn == utt_id
-            label_list.append(key)
-            src_list.append(src)
+    for fn, sco, trl in zip(fname_list, score_list, trial_lines):
+        _, utt_id, _, src, key = trl.strip().split(' ')
+        label_list.append(key)
+        src_list.append(src)
 
     results_df = pd.DataFrame({
         'id': fname_list,
