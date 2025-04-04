@@ -99,7 +99,6 @@ def main(args: argparse.Namespace) -> None:
         print("DONE.")
         eval_eer, eval_tdcf = calculate_tDCF_EER(
             cm_scores_file=eval_score_path,
-            asv_score_file=database_path / config["asv_score_path"],
             output_file=model_tag/"loaded_model_t-DCF_EER.txt")
         print(eval_eer, eval_tdcf)
         sys.exit(0)
@@ -116,14 +115,6 @@ def main(args: argparse.Namespace) -> None:
         amsgrad=optim_config["amsgrad"]
     )
 
-    # Инициализация scheduler (если используется)
-    if optim_config["scheduler"] == "cosine":
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            optimizer,
-            T_max=10,  # Общее количество эпох
-            eta_min=optim_config["lr_min"]
-        )
-
     best_dev_eer = 1.
     best_eval_eer = 100.
     best_dev_tdcf = 0.05
@@ -138,8 +129,7 @@ def main(args: argparse.Namespace) -> None:
     # Training
     for epoch in range(config["num_epochs"]):
         print("Start training epoch{:03d}".format(epoch))
-        running_loss = train_epoch(trn_loader, model, optimizer, device,
-                                   scheduler, config)
+        running_loss = train_epoch(trn_loader, model, optimizer, device, config)
         produce_evaluation_file(dev_loader, model, device,
                                 metric_path/"dev_score.txt", dev_trial_path)
         dev_eer, dev_tdcf = calculate_tDCF_EER(
@@ -319,7 +309,6 @@ def train_epoch(
     model,
     optim: Union[torch.optim.SGD, torch.optim.Adam],
     device: torch.device,
-    scheduler: torch.optim.lr_scheduler,
     config: argparse.Namespace):
     """Train the model for one epoch"""
     running_loss = 0
@@ -355,17 +344,9 @@ def train_epoch(
 
 
         optim.step()
-
-        if config["optim_config"]["scheduler"] in ["cosine", "keras_decay"]:
-            scheduler.step()
-        elif scheduler is None:
-            pass
-        else:
-            raise ValueError("scheduler error, got:{}".format(scheduler))
         
         pbar.set_postfix({
-            'loss': batch_loss.item(),
-            'lr': optim.param_groups[0]['lr']
+            'loss': batch_loss.item()
         })
 
     running_loss /= num_total
