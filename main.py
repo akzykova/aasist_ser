@@ -147,11 +147,7 @@ def main(args: argparse.Namespace) -> None:
 
         classifier_state = {
             'classifier.weight': model.classifier.weight,
-            'classifier.bias': model.classifier.bias,
-            'aasist_norm.weight': model.aasist_norm.weight,  # Параметры нормализации AASIST
-            'aasist_norm.bias': model.aasist_norm.bias,
-            'ser_norm.weight': model.ser_norm.weight,        # Параметры нормализации SER
-            'ser_norm.bias': model.ser_norm.bias
+            'classifier.bias': model.classifier.bias
         }
 
         torch.save(classifier_state,

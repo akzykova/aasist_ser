@@ -38,8 +38,8 @@ class AASISTWithEmotion(nn.Module):
         self.aasist_feat_dim = 5 * aasist_config["gat_dims"][1]
         self.ser_feat_dim = 256
 
-        self.aasist_norm = nn.LayerNorm(self.aasist_feat_dim)
-        self.ser_norm = nn.LayerNorm(self.ser_feat_dim)          
+        # self.aasist_norm = nn.LayerNorm(self.aasist_feat_dim)
+        # self.ser_norm = nn.LayerNorm(self.ser_feat_dim)          
         self.classifier = nn.Linear(self.aasist_feat_dim + self.ser_feat_dim, 2)
 
         self._init_weights()
@@ -76,8 +76,8 @@ class AASISTWithEmotion(nn.Module):
             mel_features = self.extract_mel_features(x)
             ser_feat = self.ser(mel_features)
 
-        aasist_feat = self.aasist_norm(aasist_feat)
-        ser_feat = self.ser_norm(ser_feat)
+        # aasist_feat = self.aasist_norm(aasist_feat)
+        # ser_feat = self.ser_norm(ser_feat)
         
         combined = torch.cat([aasist_feat, ser_feat], dim=1)
         output = self.classifier(combined)
