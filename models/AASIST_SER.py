@@ -48,10 +48,10 @@ class AASISTWithEmotion(nn.Module):
         with torch.no_grad():
             nn.init.kaiming_normal_(self.classifier.weight, mode='fan_out', nonlinearity='relu')
             nn.init.constant_(self.classifier.bias, 0.0)
-            nn.init.ones_(self.aasist_norm.weight)
-            nn.init.zeros_(self.aasist_norm.bias)
-            nn.init.ones_(self.ser_norm.weight)
-            nn.init.zeros_(self.ser_norm.bias)
+            # nn.init.ones_(self.aasist_norm.weight)
+            # nn.init.zeros_(self.aasist_norm.bias)
+            # nn.init.ones_(self.ser_norm.weight)
+            # nn.init.zeros_(self.ser_norm.bias)
 
     def extract_mel_features(self, x):
         mel_spec = self.mel_transform(x)  # (batch, n_mels, time)
