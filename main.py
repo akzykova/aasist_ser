@@ -105,8 +105,6 @@ def main(args: argparse.Namespace) -> None:
 
     optimizer = torch.optim.Adam(
         [
-            {'params': model.aasist_norm.parameters()},
-            {'params': model.ser_norm.parameters()},
             {'params': model.classifier.parameters()}
         ],
         lr=optim_config["base_lr"],
@@ -155,6 +153,17 @@ def main(args: argparse.Namespace) -> None:
 
     print('End of training')
 
+    print("Start evaluation...")
+    produce_evaluation_file(eval_loader, model, device,
+                            eval_score_path, eval_trial_path)
+    calculate_tDCF_EER(cm_scores_file=eval_score_path,
+                        output_file=model_tag / "t-DCF_EER.txt")
+    print("DONE.")
+    eval_eer, eval_tdcf = calculate_tDCF_EER(
+        cm_scores_file=eval_score_path,
+        output_file=model_tag/"loaded_model_t-DCF_EER.txt")
+    print(eval_eer, eval_tdcf)
+
 
 def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
     model = AASISTWithEmotion(
@@ -174,18 +183,18 @@ def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
                     'bias': state_dict['classifier.bias']
                 })
             
-            # Загружаем LayerNorm для AASIST и SER
-            if 'aasist_norm.weight' in state_dict:
-                model.aasist_norm.load_state_dict({
-                    'weight': state_dict['aasist_norm.weight'],
-                    'bias': state_dict['aasist_norm.bias']
-                })
+            # # Загружаем LayerNorm для AASIST и SER
+            # if 'aasist_norm.weight' in state_dict:
+            #     model.aasist_norm.load_state_dict({
+            #         'weight': state_dict['aasist_norm.weight'],
+            #         'bias': state_dict['aasist_norm.bias']
+            #     })
             
-            if 'ser_norm.weight' in state_dict:
-                model.ser_norm.load_state_dict({
-                    'weight': state_dict['ser_norm.weight'],
-                    'bias': state_dict['ser_norm.bias']
-                })
+            # if 'ser_norm.weight' in state_dict:
+            #     model.ser_norm.load_state_dict({
+            #         'weight': state_dict['ser_norm.weight'],
+            #         'bias': state_dict['ser_norm.bias']
+            #     })
             
             print("Successfully loaded classifier and LayerNorm weights")
         except Exception as e:
