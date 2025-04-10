@@ -105,6 +105,7 @@ def main(args: argparse.Namespace) -> None:
 
     optimizer = torch.optim.Adam(
         [
+            {'params': model.layer_norm.parameters()},
             {'params': model.classifier.parameters()}
         ],
         lr=optim_config["base_lr"],
@@ -144,6 +145,8 @@ def main(args: argparse.Namespace) -> None:
             best_dev_eer = dev_eer
 
         classifier_state = {
+            'layer_norm.weight': model.layer_norm.weight,
+            'layer_norm.bias': model.layer_norm.bias,
             'classifier.weight': model.classifier.weight,
             'classifier.bias': model.classifier.bias
         }
