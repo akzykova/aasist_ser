@@ -185,6 +185,12 @@ def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
                     'weight': state_dict['classifier.weight'],
                     'bias': state_dict['classifier.bias']
                 })
+
+            if 'layer_norm.weight' in state_dict:
+                model.layer_norm.load_state_dict({
+                    'weight': state_dict['layer_norm.weight'],
+                    'bias': state_dict['layer_norm.bias']
+                })
             
             # # Загружаем LayerNorm для AASIST и SER
             # if 'aasist_norm.weight' in state_dict:
