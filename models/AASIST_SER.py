@@ -19,7 +19,7 @@ class FiLMLayer(nn.Module):
         beta = self.beta(condition).unsqueeze(-1)    # (batch, feature_dim, 1)
         return x * gamma + beta
 
-class AASISTWithEmotionFiLM(nn.Module):
+class AASISTWithEmotion(nn.Module):
     def __init__(self, aasist_config, ser_config, n_mels=40, sample_rate=16000):
         super().__init__()
         
