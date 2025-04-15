@@ -5,16 +5,32 @@ import torchaudio.transforms as T
 from .AASIST import Model
 from .ACRNN import acrnn
 
-class AASISTWithEmotion(nn.Module):
+class FiLMLayer(nn.Module):
+    """FiLM (Feature-wise Linear Modulation) layer"""
+    def __init__(self, feature_dim, condition_dim):
+        super().__init__()
+        self.gamma = nn.Linear(condition_dim, feature_dim)
+        self.beta = nn.Linear(condition_dim, feature_dim)
+        
+    def forward(self, x, condition):
+        # x: (batch, feature_dim)
+        # condition: (batch, condition_dim)
+        gamma = self.gamma(condition).unsqueeze(-1)  # (batch, feature_dim, 1)
+        beta = self.beta(condition).unsqueeze(-1)    # (batch, feature_dim, 1)
+        return x * gamma + beta
+
+class AASISTWithEmotionFiLM(nn.Module):
     def __init__(self, aasist_config, ser_config, n_mels=40, sample_rate=16000):
         super().__init__()
         
+        # Инициализация AASIST (замороженный)
         self.aasist = Model(aasist_config)
         self.aasist.load_state_dict(torch.load(aasist_config["aasist_path"]))
         self.aasist.eval()
         for p in self.aasist.parameters():
             p.requires_grad = False
 
+        # Инициализация SER (замороженный)
         self.ser = acrnn()
         self.ser.load_state_dict(torch.load(ser_config["ser_path"]))
         self.ser.eval()
@@ -23,8 +39,8 @@ class AASISTWithEmotion(nn.Module):
 
         self.n_mels = n_mels
         self.sample_rate = sample_rate
-        self.frame_length = int(0.025 * sample_rate)  # 25ms
-        self.frame_step = int(0.01 * sample_rate) 
+        self.frame_length = int(0.025 * sample_rate)
+        self.frame_step = int(0.01 * sample_rate)
 
         self.mel_transform = T.MelSpectrogram(
             sample_rate=sample_rate,
@@ -32,58 +48,40 @@ class AASISTWithEmotion(nn.Module):
             win_length=self.frame_length,
             hop_length=self.frame_step,
             n_mels=n_mels,
-            power=2  # Для совместимости с logfbank
+            power=2
         )
 
         self.aasist_feat_dim = 5 * aasist_config["gat_dims"][1]
         self.ser_feat_dim = 256
 
-        # self.aasist_norm = nn.LayerNorm(self.aasist_feat_dim)
-        # self.ser_norm = nn.LayerNorm(self.ser_feat_dim) 
-        self.layer_norm = nn.LayerNorm(self.aasist_feat_dim + self.ser_feat_dim)       
-        self.classifier = nn.Linear(self.aasist_feat_dim + self.ser_feat_dim, 2)
-
-        self._init_weights()
-
-    def _init_weights(self):
-        with torch.no_grad():
-            nn.init.kaiming_normal_(self.classifier.weight, mode='fan_out', nonlinearity='relu')
-            nn.init.constant_(self.classifier.bias, 0.0)
-            # nn.init.ones_(self.aasist_norm.weight)
-            # nn.init.zeros_(self.aasist_norm.bias)
-            # nn.init.ones_(self.ser_norm.weight)
-            # nn.init.zeros_(self.ser_norm.bias)
+        self.film = FiLMLayer(self.aasist_feat_dim, self.ser_feat_dim)
+        
+        self.classifier = nn.Sequential(
+            nn.Linear(self.aasist_feat_dim, 64),
+            nn.ReLU(),
+            nn.Linear(64, 2)
+        )
 
     def extract_mel_features(self, x):
-        mel_spec = self.mel_transform(x)  # (batch, n_mels, time)
-        
+        mel_spec = self.mel_transform(x)
         log_mel = torch.log(mel_spec + 1e-6)
-        
         delta1 = torchaudio.functional.compute_deltas(log_mel)
         delta2 = torchaudio.functional.compute_deltas(delta1)
-        
-        features = torch.stack([
-            log_mel[..., :300],
-            delta1[..., :300],
-            delta2[..., :300]
-        ], dim=1)  # (batch, 3, n_mels, 300)
-        
-        return features
+        return torch.stack([log_mel[..., :300], delta1[..., :300], delta2[..., :300]], dim=1)
 
     def forward(self, x, Freq_aug=False):
         with torch.no_grad():
+            # Извлекаем фичи из AASIST и SER
             aasist_feat, _ = self.aasist(x, Freq_aug=Freq_aug)
-            
-            mel_features = self.extract_mel_features(x)
-            ser_feat = self.ser(mel_features)
+            ser_feat = self.ser(self.extract_mel_features(x))
 
-        # aasist_feat = self.aasist_norm(aasist_feat)
-        # ser_feat = self.ser_norm(ser_feat)
+        # Применяем FiLM к AASIST фичам с условием от SER
+        modulated_features = self.film(aasist_feat, ser_feat)
         
-        combined = self.layer_norm(torch.cat([aasist_feat, ser_feat], dim=1))
-        output = self.classifier(combined)
+        # Классификация
+        output = self.classifier(modulated_features)
         
-        return combined, output
+        return modulated_features, output
 
     @property
     def device(self):

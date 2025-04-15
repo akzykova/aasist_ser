@@ -105,8 +105,8 @@ def main(args: argparse.Namespace) -> None:
 
     optimizer = torch.optim.Adam(
         [
-            {'params': model.layer_norm.parameters()},
-            {'params': model.classifier.parameters()}
+            {'params': model.film.parameters()},       # FiLM
+            {'params': model.classifier.parameters()}   # Классификатор
         ],
         lr=optim_config["base_lr"],
         betas=tuple(optim_config["betas"]),
@@ -174,40 +174,53 @@ def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
         ser_config=model_config["ser_config"]
     ).to(device)
     
+
     if "classifier_path" in model_config:
-        print(f"Loading classifier weights from {model_config['classifier_path']}")
+
+
+        print(f"Loading weights from {model_config['classifier_path']}")
         try:
             state_dict = torch.load(model_config["classifier_path"], map_location=device)
+            model_state_dict = model.state_dict()
             
-            # Загружаем classifier (если есть в state_dict)
-            if 'classifier.weight' in state_dict:
-                model.classifier.load_state_dict({
-                    'weight': state_dict['classifier.weight'],
-                    'bias': state_dict['classifier.bias']
-                })
+            updated_state_dict = {}
+            
+            classifier_keys = {
+                'classifier.0.weight': 'classifier.0.weight',
+                'classifier.0.bias': 'classifier.0.bias',
+                'classifier.2.weight': 'classifier.2.weight', 
+                'classifier.2.bias': 'classifier.2.bias'
+            }
+            
+            for old_key, new_key in classifier_keys.items():
+                if old_key in state_dict and new_key in model_state_dict:
+                    updated_state_dict[new_key] = state_dict[old_key]
+            film_keys = {
+                'film.gamma.weight': 'film.gamma.weight',
+                'film.gamma.bias': 'film.gamma.bias',
+                'film.beta.weight': 'film.beta.weight',
+                'film.beta.bias': 'film.beta.bias'
+            }
+            
+            for old_key, new_key in film_keys.items():
+                if old_key in state_dict and new_key in model_state_dict:
+                    updated_state_dict[new_key] = state_dict[old_key]
 
-            if 'layer_norm.weight' in state_dict:
-                model.layer_norm.load_state_dict({
-                    'weight': state_dict['layer_norm.weight'],
-                    'bias': state_dict['layer_norm.bias']
-                })
+            model.load_state_dict(updated_state_dict, strict=False)
             
-            # # Загружаем LayerNorm для AASIST и SER
-            # if 'aasist_norm.weight' in state_dict:
-            #     model.aasist_norm.load_state_dict({
-            #         'weight': state_dict['aasist_norm.weight'],
-            #         'bias': state_dict['aasist_norm.bias']
-            #     })
+            loaded_components = {
+                "Classifier": any('classifier' in k for k in updated_state_dict),
+                "FiLM": any('film' in k for k in updated_state_dict)
+            }
             
-            # if 'ser_norm.weight' in state_dict:
-            #     model.ser_norm.load_state_dict({
-            #         'weight': state_dict['ser_norm.weight'],
-            #         'bias': state_dict['ser_norm.bias']
-            #     })
+            print("Successfully loaded components:")
+            for name, status in loaded_components.items():
+                print(f"- {name}: {'✓' if status else '✗'}")
             
-            print("Successfully loaded classifier and LayerNorm weights")
+            return model
+            
         except Exception as e:
-            print(f"Error loading classifier weights: {str(e)}")
+            print(f"Error loading weights: {str(e)}")
             raise
     
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
