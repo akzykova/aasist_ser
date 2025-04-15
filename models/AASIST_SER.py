@@ -15,9 +15,10 @@ class FiLMLayer(nn.Module):
     def forward(self, x, condition):
         # x: (batch, feature_dim)
         # condition: (batch, condition_dim)
-        gamma = self.gamma(condition).unsqueeze(-1)  # (batch, feature_dim, 1)
-        beta = self.beta(condition).unsqueeze(-1)    # (batch, feature_dim, 1)
+        gamma = self.gamma(condition)  # (batch, feature_dim)
+        beta = self.beta(condition)    # (batch, feature_dim)
         return x * gamma + beta
+
 
 class AASISTWithEmotion(nn.Module):
     def __init__(self, aasist_config, ser_config, n_mels=40, sample_rate=16000):
