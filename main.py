@@ -145,14 +145,22 @@ def main(args: argparse.Namespace) -> None:
             best_dev_eer = dev_eer
 
         classifier_state = {
-            'layer_norm.weight': model.layer_norm.weight,
-            'layer_norm.bias': model.layer_norm.bias,
-            'classifier.weight': model.classifier.weight,
-            'classifier.bias': model.classifier.bias
+            'film.gamma.weight': model.film.gamma.weight,
+            'film.gamma.bias': model.film.gamma.bias,
+            'film.beta.weight': model.film.beta.weight,
+            'film.beta.bias': model.film.beta.bias,
+            
+            'classifier.0.weight': model.classifier[0].weight,
+            'classifier.0.bias': model.classifier[0].bias,
+            'classifier.2.weight': model.classifier[2].weight,
+            'classifier.2.bias': model.classifier[2].bias
         }
 
-        torch.save(classifier_state,
-            model_save_path / f"epoch_{epoch}_classifier.pth")
+        torch.save(
+            classifier_state,
+            model_save_path / f"epoch_{epoch}_classifier.pth"
+        )
+        print(f"Saved model weights to {model_save_path}/epoch_{epoch}_classifier.pth")
 
     print('End of training')
 
