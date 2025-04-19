@@ -105,8 +105,9 @@ def main(args: argparse.Namespace) -> None:
 
     optimizer = torch.optim.Adam(
         [
-            {'params': model.film.parameters()},       # FiLM
-            {'params': model.classifier.parameters()}   # Классификатор
+            {'params': model.aasist.parameters(), 'lr': optim_config["base_lr"] * 0.1},
+            {'params': model.film.parameters()},
+            {'params': model.classifier.parameters()}
         ],
         lr=optim_config["base_lr"],
         betas=tuple(optim_config["betas"]),
@@ -144,12 +145,18 @@ def main(args: argparse.Namespace) -> None:
             print("best model find at epoch", epoch)
             best_dev_eer = dev_eer
 
-        classifier_state = {
+        # Вариант 1: Сохранять все обучаемые параметры модели
+        model_state = {
+            # AASIST параметры (теперь они обучаемые)
+            'aasist': model.aasist.state_dict(),
+            
+            # FiLM параметры
             'film.gamma.weight': model.film.gamma.weight,
             'film.gamma.bias': model.film.gamma.bias,
             'film.beta.weight': model.film.beta.weight,
             'film.beta.bias': model.film.beta.bias,
             
+            # Classifier параметры
             'classifier.0.weight': model.classifier[0].weight,
             'classifier.0.bias': model.classifier[0].bias,
             'classifier.2.weight': model.classifier[2].weight,
@@ -157,10 +164,10 @@ def main(args: argparse.Namespace) -> None:
         }
 
         torch.save(
-            classifier_state,
-            model_save_path / f"epoch_{epoch}_classifier.pth"
+            model_state,
+            model_save_path / f"epoch_{epoch}_full_model.pth"
         )
-        print(f"Saved model weights to {model_save_path}/epoch_{epoch}_classifier.pth")
+        print(f"Saved model weights to {model_save_path}/epoch_{epoch}_full_model.pth")
 
     print('End of training')
 
@@ -182,60 +189,109 @@ def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
         ser_config=model_config["ser_config"]
     ).to(device)
     
-
-    if "classifier_path" in model_config:
-
-
-        print(f"Loading weights from {model_config['classifier_path']}")
+    if "model_path" in model_config:
+        print(f"Loading weights from {model_config['model_path']}")
         try:
-            state_dict = torch.load(model_config["classifier_path"], map_location=device)
-            model_state_dict = model.state_dict()
+            state_dict = torch.load(model_config["model_path"], map_location=device)
             
-            updated_state_dict = {}
+            # 1. Загрузка AASIST
+            if 'aasist' in state_dict:
+                model.aasist.load_state_dict(state_dict['aasist'])
+                print("✓ AASIST weights loaded")
+            else:
+                print("✗ AASIST weights not found in checkpoint")
             
-            classifier_keys = {
-                'classifier.0.weight': 'classifier.0.weight',
-                'classifier.0.bias': 'classifier.0.bias',
-                'classifier.2.weight': 'classifier.2.weight', 
-                'classifier.2.bias': 'classifier.2.bias'
-            }
+            # 2. Загрузка FiLM
+            if 'film' in state_dict:
+                model.film.load_state_dict(state_dict['film'])
+                print("✓ FiLM weights loaded")
+            else:
+                print("✗ FiLM weights not found in checkpoint")
             
-            for old_key, new_key in classifier_keys.items():
-                if old_key in state_dict and new_key in model_state_dict:
-                    updated_state_dict[new_key] = state_dict[old_key]
-            film_keys = {
-                'film.gamma.weight': 'film.gamma.weight',
-                'film.gamma.bias': 'film.gamma.bias',
-                'film.beta.weight': 'film.beta.weight',
-                'film.beta.bias': 'film.beta.bias'
-            }
-            
-            for old_key, new_key in film_keys.items():
-                if old_key in state_dict and new_key in model_state_dict:
-                    updated_state_dict[new_key] = state_dict[old_key]
-
-            model.load_state_dict(updated_state_dict, strict=False)
-            
-            loaded_components = {
-                "Classifier": any('classifier' in k for k in updated_state_dict),
-                "FiLM": any('film' in k for k in updated_state_dict)
-            }
-            
-            print("Successfully loaded components:")
-            for name, status in loaded_components.items():
-                print(f"- {name}: {'✓' if status else '✗'}")
-            
-            return model
+            # 3. Загрузка Classifier
+            if 'classifier' in state_dict:
+                model.classifier.load_state_dict(state_dict['classifier'])
+                print("✓ Classifier weights loaded")
+            else:
+                print("✗ Classifier weights not found in checkpoint")
             
         except Exception as e:
             print(f"Error loading weights: {str(e)}")
             raise
     
+    def count_params(module):
+        return sum(p.numel() for p in module.parameters())
+    
+    total_params = count_params(model)
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    total_params = sum(p.numel() for p in model.parameters())
-    print(f"Model parameters: {total_params:,} (Trainable: {trainable_params:,})")
+    
+    print("\nModel architecture:")
+    print(f"- AASIST: {count_params(model.aasist):,} params")
+    print(f"- FiLM: {count_params(model.film):,} params")
+    print(f"- Classifier: {count_params(model.classifier):,} params")
+    print(f"Total: {total_params:,} params (Trainable: {trainable_params:,})")
     
     return model
+
+
+# def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
+#     model = AASISTWithEmotion(
+#         aasist_config=model_config["aasist_config"],
+#         ser_config=model_config["ser_config"]
+#     ).to(device)
+    
+
+#     if "classifier_path" in model_config:
+#         print(f"Loading weights from {model_config['classifier_path']}")
+#         try:
+#             state_dict = torch.load(model_config["classifier_path"], map_location=device)
+#             model_state_dict = model.state_dict()
+            
+#             updated_state_dict = {}
+            
+#             classifier_keys = {
+#                 'classifier.0.weight': 'classifier.0.weight',
+#                 'classifier.0.bias': 'classifier.0.bias',
+#                 'classifier.2.weight': 'classifier.2.weight', 
+#                 'classifier.2.bias': 'classifier.2.bias'
+#             }
+            
+#             for old_key, new_key in classifier_keys.items():
+#                 if old_key in state_dict and new_key in model_state_dict:
+#                     updated_state_dict[new_key] = state_dict[old_key]
+#             film_keys = {
+#                 'film.gamma.weight': 'film.gamma.weight',
+#                 'film.gamma.bias': 'film.gamma.bias',
+#                 'film.beta.weight': 'film.beta.weight',
+#                 'film.beta.bias': 'film.beta.bias'
+#             }
+            
+#             for old_key, new_key in film_keys.items():
+#                 if old_key in state_dict and new_key in model_state_dict:
+#                     updated_state_dict[new_key] = state_dict[old_key]
+
+#             model.load_state_dict(updated_state_dict, strict=False)
+            
+#             loaded_components = {
+#                 "Classifier": any('classifier' in k for k in updated_state_dict),
+#                 "FiLM": any('film' in k for k in updated_state_dict)
+#             }
+            
+#             print("Successfully loaded components:")
+#             for name, status in loaded_components.items():
+#                 print(f"- {name}: {'✓' if status else '✗'}")
+            
+#             return model
+            
+#         except Exception as e:
+#             print(f"Error loading weights: {str(e)}")
+#             raise
+    
+#     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+#     total_params = sum(p.numel() for p in model.parameters())
+#     print(f"Model parameters: {total_params:,} (Trainable: {trainable_params:,})")
+    
+#     return model
 
 
 def get_loader(
