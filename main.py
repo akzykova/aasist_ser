@@ -190,45 +190,53 @@ def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
     ).to(device)
     
     if "model_path" in model_config:
-        print(f"Loading weights from {model_config['model_path']}")
+        print(f"\nLoading weights from {model_config['model_path']}")
         try:
             state_dict = torch.load(model_config["model_path"], map_location=device)
             
-            # 1. Загрузка AASIST
+            # 1. Загрузка AASIST (если есть отдельный ключ)
             if 'aasist' in state_dict:
                 model.aasist.load_state_dict(state_dict['aasist'])
                 print("✓ AASIST weights loaded")
-            else:
-                print("✗ AASIST weights not found in checkpoint")
             
-            # 2. Загрузка FiLM
-            if 'film' in state_dict:
-                model.film.load_state_dict(state_dict['film'])
-                print("✓ FiLM weights loaded")
-            else:
-                print("✗ FiLM weights not found in checkpoint")
+            # 2. Загрузка FiLM (собираем вручную из film.*)
+            film_weights = {
+                'gamma.weight': state_dict['film.gamma.weight'],
+                'gamma.bias': state_dict['film.gamma.bias'],
+                'beta.weight': state_dict['film.beta.weight'],
+                'beta.bias': state_dict['film.beta.bias']
+            }
+            model.film.load_state_dict(film_weights)
+            print("✓ FiLM weights loaded")
             
-            # 3. Загрузка Classifier
-            if 'classifier' in state_dict:
-                model.classifier.load_state_dict(state_dict['classifier'])
-                print("✓ Classifier weights loaded")
-            else:
-                print("✗ Classifier weights not found in checkpoint")
+            # 3. Загрузка Classifier (собираем вручную из classifier.*)
+            classifier_weights = {
+                '0.weight': state_dict['classifier.0.weight'],
+                '0.bias': state_dict['classifier.0.bias'],
+                '2.weight': state_dict['classifier.2.weight'],
+                '2.bias': state_dict['classifier.2.bias']
+            }
+            model.classifier.load_state_dict(classifier_weights)
+            print("✓ Classifier weights loaded")
             
         except Exception as e:
-            print(f"Error loading weights: {str(e)}")
+            print(f"\nError loading weights: {str(e)}")
+            print("Available keys in checkpoint:")
+            for k in state_dict.keys():
+                print(f"- {k}")
             raise
     
+    # Подсчет параметров
     def count_params(module):
         return sum(p.numel() for p in module.parameters())
     
     total_params = count_params(model)
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     
-    print("\nModel architecture:")
-    print(f"- AASIST: {count_params(model.aasist):,} params")
-    print(f"- FiLM: {count_params(model.film):,} params")
-    print(f"- Classifier: {count_params(model.classifier):,} params")
+    print("\nModel summary:")
+    print(f"- AASIST: {count_params(model.aasist):,} params (frozen)")
+    print(f"- FiLM: {count_params(model.film):,} params (trainable)")
+    print(f"- Classifier: {count_params(model.classifier):,} params (trainable)")
     print(f"Total: {total_params:,} params (Trainable: {trainable_params:,})")
     
     return model
