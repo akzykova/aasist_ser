@@ -145,29 +145,31 @@ def main(args: argparse.Namespace) -> None:
             print("best model find at epoch", epoch)
             best_dev_eer = dev_eer
 
-        # Вариант 1: Сохранять все обучаемые параметры модели
-        model_state = {
-            # AASIST параметры (теперь они обучаемые)
-            'aasist': model.aasist.state_dict(),
-            
-            # FiLM параметры
-            'film.gamma.weight': model.film.gamma.weight,
-            'film.gamma.bias': model.film.gamma.bias,
-            'film.beta.weight': model.film.beta.weight,
-            'film.beta.bias': model.film.beta.bias,
-            
-            # Classifier параметры
-            'classifier.0.weight': model.classifier[0].weight,
-            'classifier.0.bias': model.classifier[0].bias,
-            'classifier.2.weight': model.classifier[2].weight,
-            'classifier.2.bias': model.classifier[2].bias
-        }
+            model_state = {
+                'aasist': model.aasist.state_dict(),
+                
+                'film.gamma.weight': model.film.gamma.weight,
+                'film.gamma.bias': model.film.gamma.bias,
+                'film.beta.weight': model.film.beta.weight,
+                'film.beta.bias': model.film.beta.bias,
+                
+                'classifier.0.weight': model.classifier[0].weight,
+                'classifier.0.bias': model.classifier[0].bias,
+                'classifier.2.weight': model.classifier[2].weight,
+                'classifier.2.bias': model.classifier[2].bias,
+                
+                'optimizer_state_dict': optimizer.state_dict(),
+                
+                'epoch': epoch,
+                'best_dev_eer': best_dev_eer,
+                'best_dev_tdcf': best_dev_tdcf
+            }
 
-        torch.save(
-            model_state,
-            model_save_path / f"epoch_{epoch}_full_model.pth"
-        )
-        print(f"Saved model weights to {model_save_path}/epoch_{epoch}_full_model.pth")
+            torch.save(
+                model_state,
+                model_save_path / f"epoch_{epoch}_full_model.pth"
+            )
+            print(f"Saved model weights and optimizer state to {model_save_path}/epoch_{epoch}_full_model.pth")
 
     print('End of training')
 
