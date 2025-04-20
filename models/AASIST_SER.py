@@ -24,14 +24,12 @@ class AASISTWithEmotion(nn.Module):
     def __init__(self, aasist_config, ser_config, n_mels=40, sample_rate=16000):
         super().__init__()
         
-        # Инициализация AASIST (размороженный)
         self.aasist = Model(aasist_config)
         self.aasist.load_state_dict(torch.load(aasist_config["aasist_path"]))
         # self.aasist.eval()
         # for p in self.aasist.parameters():
         #     p.requires_grad = False
 
-        # Инициализация SER (замороженный)
         self.ser = acrnn()
         self.ser.load_state_dict(torch.load(ser_config["ser_path"]))
         self.ser.eval()
@@ -76,10 +74,8 @@ class AASISTWithEmotion(nn.Module):
         with torch.no_grad():
             ser_feat = self.ser(self.extract_mel_features(x))
 
-        # Применяем FiLM к AASIST фичам с условием от SER
         modulated_features = self.film(aasist_feat, ser_feat)
         
-        # Классификация
         output = self.classifier(modulated_features)
         
         return modulated_features, output
