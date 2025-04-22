@@ -2,22 +2,33 @@ import torch
 import torch.nn as nn
 import torchaudio
 import torchaudio.transforms as T
+import torch.nn.functional as F
 from .AASIST import Model
 from .ACRNN import acrnn
 
-class FiLMLayer(nn.Module):
-    """FiLM (Feature-wise Linear Modulation) layer"""
-    def __init__(self, feature_dim, condition_dim):
+class FiLMBlock(nn.Module):
+    def __init__(self, sv_dim, cm_dim, hidden_dim=128):
         super().__init__()
-        self.gamma = nn.Linear(condition_dim, feature_dim)
-        self.beta = nn.Linear(condition_dim, feature_dim)
+        self.cm_ln = nn.LayerNorm(cm_dim)
+        self.condition_to_gamma_beta = nn.Sequential(
+            nn.Linear(cm_dim, hidden_dim),
+            nn.ReLU(),
+            nn.BatchNorm1d(hidden_dim),
+            nn.Linear(hidden_dim, 2 * sv_dim)
+        )
         
-    def forward(self, x, condition):
-        # x: (batch, feature_dim)
-        # condition: (batch, condition_dim)
-        gamma = self.gamma(condition)  # (batch, feature_dim)
-        beta = self.beta(condition)    # (batch, feature_dim)
-        return x * gamma + beta
+        self.sv_ln = nn.LayerNorm(sv_dim)
+
+    def forward(self, e_sv, e_cm):
+        e_cm_norm = self.cm_ln(e_cm)
+        gamma_beta = self.condition_to_gamma_beta(e_cm_norm)  # (batch_size, 2 * sv_dim)
+        gamma, beta = torch.chunk(gamma_beta, 2, dim=-1)      # (batch_size, sv_dim), (batch_size, sv_dim)
+        
+        e_sv_norm = self.sv_ln(e_sv)
+        e1 = gamma * e_sv_norm + beta
+
+        return e1
+
 
 
 class AASISTWithEmotion(nn.Module):
@@ -53,7 +64,17 @@ class AASISTWithEmotion(nn.Module):
         self.aasist_feat_dim = 5 * aasist_config["gat_dims"][1]
         self.ser_feat_dim = 256
 
-        self.film = FiLMLayer(self.aasist_feat_dim, self.ser_feat_dim)
+        self.film_block = FiLMBlock(
+            sv_dim=self.aasist_feat_dim,
+            cm_dim=self.ser_feat_dim,
+            hidden_dim=256
+        )
+
+        self.post_film = nn.Sequential(
+            nn.Linear(self.aasist_feat_dim, self.aasist_feat_dim),
+            nn.ReLU(),
+            nn.Linear(self.aasist_feat_dim, self.aasist_feat_dim)
+        )
         
         self.classifier = nn.Sequential(
             nn.Linear(self.aasist_feat_dim, 64),
@@ -74,11 +95,12 @@ class AASISTWithEmotion(nn.Module):
         with torch.no_grad():
             ser_feat = self.ser(self.extract_mel_features(x))
 
-        modulated_features = self.film(aasist_feat, ser_feat)
+        e_mod1 = self.film_block(aasist_feat, ser_feat)
+        e_mod2 = self.post_film(F.relu(e_mod1))
         
-        output = self.classifier(modulated_features)
+        output = self.classifier(e_mod2)
         
-        return modulated_features, output
+        return e_mod2, output
 
     @property
     def device(self):

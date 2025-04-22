@@ -147,19 +147,12 @@ def main(args: argparse.Namespace) -> None:
 
             model_state = {
                 'aasist': model.aasist.state_dict(),
-                
-                'film.gamma.weight': model.film.gamma.weight,
-                'film.gamma.bias': model.film.gamma.bias,
-                'film.beta.weight': model.film.beta.weight,
-                'film.beta.bias': model.film.beta.bias,
-                
-                'classifier.0.weight': model.classifier[0].weight,
-                'classifier.0.bias': model.classifier[0].bias,
-                'classifier.2.weight': model.classifier[2].weight,
-                'classifier.2.bias': model.classifier[2].bias,
-                
+                'film_block': model.film_block.state_dict(),
+                'post_film': model.post_film.state_dict(),
+                'classifier': model.classifier.state_dict(),
+
                 'optimizer_state_dict': optimizer.state_dict(),
-                
+
                 'epoch': epoch,
                 'best_dev_eer': best_dev_eer,
                 'best_dev_tdcf': best_dev_tdcf
@@ -170,6 +163,7 @@ def main(args: argparse.Namespace) -> None:
                 model_save_path / f"epoch_{epoch}_full_model.pth"
             )
             print(f"Saved model weights and optimizer state to {model_save_path}/epoch_{epoch}_full_model.pth")
+
 
     print('End of training')
 
@@ -200,23 +194,17 @@ def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
                 model.aasist.load_state_dict(state_dict['aasist'])
                 print("✓ AASIST weights loaded")
             
-            film_weights = {
-                'gamma.weight': state_dict['film.gamma.weight'],
-                'gamma.bias': state_dict['film.gamma.bias'],
-                'beta.weight': state_dict['film.beta.weight'],
-                'beta.bias': state_dict['film.beta.bias']
-            }
-            model.film.load_state_dict(film_weights)
-            print("FiLM weights loaded")
-
-            classifier_weights = {
-                '0.weight': state_dict['classifier.0.weight'],
-                '0.bias': state_dict['classifier.0.bias'],
-                '2.weight': state_dict['classifier.2.weight'],
-                '2.bias': state_dict['classifier.2.bias']
-            }
-            model.classifier.load_state_dict(classifier_weights)
-            print("Classifier weights loaded")
+            if 'film_block' in state_dict:
+                model.film_block.load_state_dict(state_dict['film_block'])
+                print("✓ FiLM block weights loaded")
+            
+            if 'post_film' in state_dict:
+                model.post_film.load_state_dict(state_dict['post_film'])
+                print("✓ Post-FiLM block weights loaded")
+            
+            if 'classifier' in state_dict:
+                model.classifier.load_state_dict(state_dict['classifier'])
+                print("✓ Classifier weights loaded")
             
         except Exception as e:
             print(f"\nError loading weights: {str(e)}")
@@ -230,11 +218,13 @@ def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
     
     print("\nModel summary:")
     print(f"- AASIST: {count_params(model.aasist):,} params")
-    print(f"- FiLM: {count_params(model.film):,} params")
-    print(f"- Classifier: {count_params(model.classifier):,}")
+    print(f"- FiLM block: {count_params(model.film_block):,} params")
+    print(f"- Post-FiLM block: {count_params(model.post_film):,} params")
+    print(f"- Classifier: {count_params(model.classifier):,} params")
     print(f"Total: {total_params:,} params (Trainable: {trainable_params:,})")
     
     return model
+
 
 
 def get_loader(
