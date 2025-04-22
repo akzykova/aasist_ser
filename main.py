@@ -160,11 +160,11 @@ def main(args: argparse.Namespace) -> None:
                 'best_dev_tdcf': best_dev_tdcf
             }
 
-            torch.save(
-                model_state,
-                model_save_path / f"epoch_{epoch}_full_model.pth"
-            )
-            print(f"Saved model weights and optimizer state to {model_save_path}/epoch_{epoch}_full_model.pth")
+        torch.save(
+            model_state,
+            model_save_path / f"epoch_{epoch}_full_model.pth"
+        )
+        print(f"Saved model weights and optimizer state to {model_save_path}/epoch_{epoch}_full_model.pth")
 
 
     print('End of training')
