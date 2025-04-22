@@ -106,7 +106,8 @@ def main(args: argparse.Namespace) -> None:
     optimizer = torch.optim.Adam(
         [
             {'params': model.aasist.parameters(), 'lr': optim_config["base_lr"] * 0.1},
-            {'params': model.film.parameters()},
+            {'params': model.film_block.parameters()},
+            {'params': model.post_film.parameters()},
             {'params': model.classifier.parameters()}
         ],
         lr=optim_config["base_lr"],
@@ -114,6 +115,7 @@ def main(args: argparse.Namespace) -> None:
         weight_decay=optim_config["weight_decay"],
         amsgrad=optim_config["amsgrad"]
     )
+
 
     best_dev_eer = 1.
     best_eval_eer = 100.
