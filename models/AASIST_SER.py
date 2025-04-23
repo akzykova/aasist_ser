@@ -10,25 +10,25 @@ class FiLMBlock(nn.Module):
     def __init__(self, sv_dim, cm_dim):
         super().__init__()
         self.cm_ln = nn.LayerNorm(cm_dim)
-        self.condition_to_gamma_beta = nn.Sequential(
+        self.shared_proj = nn.Sequential(
             nn.Linear(cm_dim, cm_dim),
             nn.ReLU(),
-            nn.BatchNorm1d(cm_dim),
-            nn.Linear(cm_dim, 2 * sv_dim)
+            nn.BatchNorm1d(cm_dim)
         )
+
+        self.gamma_head = nn.Linear(cm_dim, sv_dim)
+        self.beta_head = nn.Linear(cm_dim, sv_dim)
         
         self.sv_ln = nn.LayerNorm(sv_dim)
 
     def forward(self, e_sv, e_cm):
         e_cm_norm = self.cm_ln(e_cm)
-        gamma_beta = self.condition_to_gamma_beta(e_cm_norm)  # (batch_size, 2 * sv_dim)
-        gamma, beta = torch.chunk(gamma_beta, 2, dim=-1)      # (batch_size, sv_dim), (batch_size, sv_dim)
+        shared = self.shared_proj(e_cm_norm)
+        gamma = self.gamma_head(shared)  # [B, sv_dim]
+        beta = self.beta_head(shared)    # [B, sv_dim]
         
         e_sv_norm = self.sv_ln(e_sv)
-        e1 = gamma * e_sv_norm + beta
-
-        return e1
-
+        return gamma * e_sv_norm + beta
 
 
 class AASISTWithEmotion(nn.Module):
