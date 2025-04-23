@@ -103,6 +103,31 @@ def run_inference(args: argparse.Namespace):
     save_results(results, args.output_file)
     print(f"Inference complete. Results saved to {args.output_file}")
 
+
+def run_inference_on_folder(model, device, folder_path):
+    audio_files = [f.stem for f in folder_path.glob("*.flac")]
+    test_dataset = Dataset_Custom(list_IDs=audio_files, base_dir=folder_path)
+    
+    generator = torch.Generator()
+    generator.manual_seed(42)
+    
+    test_loader = torch.utils.data.DataLoader(
+        test_dataset,
+        batch_size=24,
+        shuffle=False,
+        generator=generator
+    )
+
+    results = []
+    for batch_x, _ in test_loader:
+        batch_x = batch_x.to(device)
+        with torch.no_grad():
+            _, batch_out = model(batch_x)
+            batch_score = (batch_out[:, 1]).data.cpu().numpy().ravel()
+        results.extend(batch_score.tolist())
+    return results
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AASIST Inference with Seed Fixation")
     parser.add_argument("--config", type=str, required=True, help="Path to config file")

@@ -7,14 +7,14 @@ from .AASIST import Model
 from .ACRNN import acrnn
 
 class FiLMBlock(nn.Module):
-    def __init__(self, sv_dim, cm_dim, hidden_dim=128):
+    def __init__(self, sv_dim, cm_dim):
         super().__init__()
         self.cm_ln = nn.LayerNorm(cm_dim)
         self.condition_to_gamma_beta = nn.Sequential(
-            nn.Linear(cm_dim, hidden_dim),
+            nn.Linear(cm_dim, cm_dim),
             nn.ReLU(),
-            nn.BatchNorm1d(hidden_dim),
-            nn.Linear(hidden_dim, 2 * sv_dim)
+            nn.BatchNorm1d(cm_dim),
+            nn.Linear(cm_dim, 2 * sv_dim)
         )
         
         self.sv_ln = nn.LayerNorm(sv_dim)
@@ -37,9 +37,9 @@ class AASISTWithEmotion(nn.Module):
         
         self.aasist = Model(aasist_config)
         self.aasist.load_state_dict(torch.load(aasist_config["aasist_path"]))
-        # self.aasist.eval()
-        # for p in self.aasist.parameters():
-        #     p.requires_grad = False
+        self.aasist.eval()
+        for p in self.aasist.parameters():
+            p.requires_grad = False
 
         self.ser = acrnn()
         self.ser.load_state_dict(torch.load(ser_config["ser_path"]))
@@ -66,14 +66,7 @@ class AASISTWithEmotion(nn.Module):
 
         self.film_block = FiLMBlock(
             sv_dim=self.aasist_feat_dim,
-            cm_dim=self.ser_feat_dim,
-            hidden_dim=256
-        )
-
-        self.post_film = nn.Sequential(
-            nn.Linear(self.aasist_feat_dim, self.aasist_feat_dim),
-            nn.ReLU(),
-            nn.Linear(self.aasist_feat_dim, self.aasist_feat_dim)
+            cm_dim=self.ser_feat_dim
         )
         
         self.classifier = nn.Sequential(
@@ -90,17 +83,15 @@ class AASISTWithEmotion(nn.Module):
         return torch.stack([log_mel[..., :300], delta1[..., :300], delta2[..., :300]], dim=1)
 
     def forward(self, x, Freq_aug=False):
-        aasist_feat, _ = self.aasist(x, Freq_aug=Freq_aug)
-
         with torch.no_grad():
+            aasist_feat, _ = self.aasist(x, Freq_aug=Freq_aug)
             ser_feat = self.ser(self.extract_mel_features(x))
 
-        e_mod1 = self.film_block(aasist_feat, ser_feat)
-        e_mod2 = self.post_film(F.relu(e_mod1))
+        e1 = self.film_block(aasist_feat, ser_feat)
         
-        output = self.classifier(e_mod2)
+        output = self.classifier(e1)
         
-        return e_mod2, output
+        return e1, output
 
     @property
     def device(self):

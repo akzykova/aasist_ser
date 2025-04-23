@@ -18,9 +18,10 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from data_utils import (Dataset_ASVspoof2019_train,
-                        Dataset_ASVspoof2019_devNeval, genSpoof_list)
-from evaluation import calculate_tDCF_EER
+                        Dataset_ASVspoof2019_devNeval, genSpoof_list, Dataset_Custom)
+from evaluation import calculate_tDCF_EER, compute_eer
 from utils import create_optimizer, seed_worker, set_seed, str_to_bool
+from inference import run_inference_on_folder
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -105,9 +106,7 @@ def main(args: argparse.Namespace) -> None:
 
     optimizer = torch.optim.Adam(
         [
-            {'params': model.aasist.parameters(), 'lr': optim_config["base_lr"] * 0.1},
             {'params': model.film_block.parameters()},
-            {'params': model.post_film.parameters()},
             {'params': model.classifier.parameters()}
         ],
         lr=optim_config["base_lr"],
@@ -142,22 +141,16 @@ def main(args: argparse.Namespace) -> None:
         print("DONE.\nLoss:{:.5f}, dev_eer: {:.3f}, dev_tdcf:{:.5f}".format(
             running_loss, dev_eer, dev_tdcf))
         
+        evaluate_per_emotion(model, device, config['emo_bonafide'], config['emo_spoof'])
+        
         best_dev_tdcf = min(dev_tdcf, best_dev_tdcf)
         if best_dev_eer >= dev_eer:
             print("best model find at epoch", epoch)
             best_dev_eer = dev_eer
 
             model_state = {
-                'aasist': model.aasist.state_dict(),
                 'film_block': model.film_block.state_dict(),
-                'post_film': model.post_film.state_dict(),
                 'classifier': model.classifier.state_dict(),
-
-                'optimizer_state_dict': optimizer.state_dict(),
-
-                'epoch': epoch,
-                'best_dev_eer': best_dev_eer,
-                'best_dev_tdcf': best_dev_tdcf
             }
 
         torch.save(
@@ -180,6 +173,18 @@ def main(args: argparse.Namespace) -> None:
         output_file=model_tag/"loaded_model_t-DCF_EER.txt")
     print(eval_eer, eval_tdcf)
 
+
+def evaluate_per_emotion(model, device, esd_dir, zonos_dir):
+    emotions = ["angry_flac", "happy_flac", "neutral_flac", "sad_flac", "surprised_flac"]
+    for emotion in emotions:
+        print(f'Validating emotion: {emotions}')
+        esd_scores = run_inference_on_folder(model, device, Path(esd_dir) / emotion)
+        
+        zonos_scores = run_inference_on_folder(model, device, Path(zonos_dir) / emotion)
+        
+        eer = compute_eer(esd_scores, zonos_scores)
+        
+        print(f"EER for {emotion}: {eer:.2f}")
 
 def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
     model = AASISTWithEmotion(
@@ -219,9 +224,9 @@ def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     
     print("\nModel summary:")
-    print(f"- AASIST: {count_params(model.aasist):,} params")
+    #print(f"- AASIST: {count_params(model.aasist):,} params")
     print(f"- FiLM block: {count_params(model.film_block):,} params")
-    print(f"- Post-FiLM block: {count_params(model.post_film):,} params")
+    #print(f"- Post-FiLM block: {count_params(model.post_film):,} params")
     print(f"- Classifier: {count_params(model.classifier):,} params")
     print(f"Total: {total_params:,} params (Trainable: {trainable_params:,})")
     

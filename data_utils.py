@@ -59,6 +59,30 @@ def pad_random(x: np.ndarray, max_len: int = 64600):
     return padded_x
 
 
+class Dataset_Custom(Dataset):
+    def __init__(self, list_IDs, base_dir):
+        """list_IDs : list of strings (each string: filename of audio file without extension)"""
+        self.list_IDs = list_IDs  # Audio File names
+        self.base_dir = base_dir  # Directory containing audio files
+        self.cut = 64600 
+
+    def len(self):
+        return len(self.list_IDs)
+
+    def getitem(self, index):
+        key = self.list_IDs[index]
+        # Read .flac audio file
+        X, _ = sf.read(str(self.base_dir / f"{key}.flac"))
+        X_pad = pad(X, self.cut)
+
+        max_val = np.max(np.abs(X_pad))
+        if max_val > 0:
+            X_pad = X_pad / max_val
+
+        x_inp = Tensor(X_pad)
+        return x_inp, key
+
+
 class Dataset_ASVspoof2019_train(Dataset):
     def __init__(self, list_IDs, labels, base_dir):
         """self.list_IDs	: list of strings (each string: utt key),
