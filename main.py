@@ -185,9 +185,9 @@ def evaluate_per_emotion(model, device, esd_dir, zonos_dir):
         
         zonos_scores = run_inference_on_folder(model, device, Path(zonos_dir) / emotion)
         
-        eer = compute_eer(esd_scores, zonos_scores)
+        eer, _ = compute_eer(esd_scores, zonos_scores)
         
-        print(f"EER for {emotion}: {eer:.2f}")
+        print(f"EER for {emotion}: {eer}")
 
 def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
     model = AASISTWithEmotion(
