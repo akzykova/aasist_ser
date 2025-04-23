@@ -66,10 +66,10 @@ class Dataset_Custom(Dataset):
         self.base_dir = base_dir  # Directory containing audio files
         self.cut = 64600 
 
-    def len(self):
+    def __len__(self):
         return len(self.list_IDs)
 
-    def getitem(self, index):
+    def __getitem__(self, index):
         key = self.list_IDs[index]
         # Read .flac audio file
         X, _ = sf.read(str(self.base_dir / f"{key}.flac"))

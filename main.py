@@ -177,7 +177,7 @@ def main(args: argparse.Namespace) -> None:
 def evaluate_per_emotion(model, device, esd_dir, zonos_dir):
     emotions = ["angry_flac", "happy_flac", "neutral_flac", "sad_flac", "surprised_flac"]
     for emotion in emotions:
-        print(f'Validating emotion: {emotions}')
+        print(f'Validating emotion: {emotion}')
         esd_scores = run_inference_on_folder(model, device, Path(esd_dir) / emotion)
         
         zonos_scores = run_inference_on_folder(model, device, Path(zonos_dir) / emotion)
