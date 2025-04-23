@@ -93,6 +93,8 @@ def main(args: argparse.Namespace) -> None:
     # evaluates pretrained model and exit script
     if args.eval:
         print("Start evaluation...")
+        evaluate_per_emotion(model, device, config['emo_bonafide'], config['emo_spoof'])
+
         produce_evaluation_file(eval_loader, model, device,
                                 eval_score_path, eval_trial_path)
         calculate_tDCF_EER(cm_scores_file=eval_score_path,
@@ -200,17 +202,17 @@ def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
         try:
             state_dict = torch.load(model_config["model_path"], map_location=device)
 
-            if 'aasist' in state_dict:
-                model.aasist.load_state_dict(state_dict['aasist'])
-                print("✓ AASIST weights loaded")
+            # if 'aasist' in state_dict:
+            #     model.aasist.load_state_dict(state_dict['aasist'])
+            #     print("✓ AASIST weights loaded")
             
             if 'film_block' in state_dict:
                 model.film_block.load_state_dict(state_dict['film_block'])
                 print("✓ FiLM block weights loaded")
             
-            if 'post_film' in state_dict:
-                model.post_film.load_state_dict(state_dict['post_film'])
-                print("✓ Post-FiLM block weights loaded")
+            # if 'post_film' in state_dict:
+            #     model.post_film.load_state_dict(state_dict['post_film'])
+            #     print("✓ Post-FiLM block weights loaded")
             
             if 'classifier' in state_dict:
                 model.classifier.load_state_dict(state_dict['classifier'])

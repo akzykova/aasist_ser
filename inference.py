@@ -26,24 +26,43 @@ def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
         ser_config=model_config["ser_config"]
     ).to(device)
     
-    if "classifier_path" in model_config:
-        print(f"Loading classifier weights from {model_config['classifier_path']}")
+    if "model_path" in model_config:
+        print(f"\nLoading weights from {model_config['model_path']}")
         try:
-            state_dict = torch.load(model_config["classifier_path"], map_location=device)
+            state_dict = torch.load(model_config["model_path"], map_location=device)
+
+            # if 'aasist' in state_dict:
+            #     model.aasist.load_state_dict(state_dict['aasist'])
+            #     print("✓ AASIST weights loaded")
+            
+            if 'film_block' in state_dict:
+                model.film_block.load_state_dict(state_dict['film_block'])
+                print("✓ FiLM block weights loaded")
+            
+            # if 'post_film' in state_dict:
+            #     model.post_film.load_state_dict(state_dict['post_film'])
+            #     print("✓ Post-FiLM block weights loaded")
             
             if 'classifier' in state_dict:
                 model.classifier.load_state_dict(state_dict['classifier'])
-            if 'feature_norm' in state_dict and hasattr(model, 'feature_norm'):
-                model.feature_norm.load_state_dict(state_dict['feature_norm'])
+                print("✓ Classifier weights loaded")
             
-            print("Successfully loaded classifier weights")
         except Exception as e:
-            print(f"Error loading classifier weights: {str(e)}")
+            print(f"\nError loading weights: {str(e)}")
             raise
     
+    def count_params(module):
+        return sum(p.numel() for p in module.parameters())
+    
+    total_params = count_params(model)
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    total_params = sum(p.numel() for p in model.parameters())
-    print(f"Model parameters: {total_params:,} (Trainable: {trainable_params:,})")
+    
+    print("\nModel summary:")
+    #print(f"- AASIST: {count_params(model.aasist):,} params")
+    print(f"- FiLM block: {count_params(model.film_block):,} params")
+    #print(f"- Post-FiLM block: {count_params(model.post_film):,} params")
+    print(f"- Classifier: {count_params(model.classifier):,} params")
+    print(f"Total: {total_params:,} params (Trainable: {trainable_params:,})")
     
     return model
 
