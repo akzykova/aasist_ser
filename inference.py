@@ -125,7 +125,7 @@ def run_inference_on_folder(model, device, folder_path):
             _, batch_out = model(batch_x)
             batch_score = (batch_out[:, 1]).data.cpu().numpy().ravel()
         results.extend(batch_score.tolist())
-    return results
+    return np.array(results)
 
 
 if __name__ == "__main__":

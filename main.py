@@ -131,6 +131,10 @@ def main(args: argparse.Namespace) -> None:
     for epoch in range(config["num_epochs"]):
         print("Start training epoch{:03d}".format(epoch))
         running_loss = train_epoch(trn_loader, model, optimizer, device, config)
+
+        evaluate_per_emotion(model, device, config['emo_bonafide'], config['emo_spoof'])
+
+
         produce_evaluation_file(dev_loader, model, device,
                                 metric_path/"dev_score.txt", dev_trial_path)
         dev_eer, dev_tdcf = calculate_tDCF_EER(
@@ -141,17 +145,16 @@ def main(args: argparse.Namespace) -> None:
         print("DONE.\nLoss:{:.5f}, dev_eer: {:.3f}, dev_tdcf:{:.5f}".format(
             running_loss, dev_eer, dev_tdcf))
         
-        evaluate_per_emotion(model, device, config['emo_bonafide'], config['emo_spoof'])
         
         best_dev_tdcf = min(dev_tdcf, best_dev_tdcf)
         if best_dev_eer >= dev_eer:
             print("best model find at epoch", epoch)
             best_dev_eer = dev_eer
 
-            model_state = {
-                'film_block': model.film_block.state_dict(),
-                'classifier': model.classifier.state_dict(),
-            }
+        model_state = {
+            'film_block': model.film_block.state_dict(),
+            'classifier': model.classifier.state_dict(),
+        }
 
         torch.save(
             model_state,
