@@ -63,16 +63,16 @@ class AASISTWithEmotion(nn.Module):
         self.ser_feat_dim = 256
 
         self.film_block = FiLMBlock(
-            sv_dim=self.aasist_feat_dim,
-            cm_dim=self.ser_feat_dim
+            sv_dim=self.ser_feat_dim,
+            cm_dim=self.aasist_feat_dim
         )
         
         self.classifier = nn.Sequential(
-            nn.Linear(self.aasist_feat_dim, self.aasist_feat_dim),
+            nn.Linear(self.ser_feat_dim, self.ser_feat_dim),
             nn.LeakyReLU(),
-            nn.Linear(self.aasist_feat_dim, self.aasist_feat_dim),
+            nn.Linear(self.ser_feat_dim, self.ser_feat_dim),
             nn.LeakyReLU(),
-            nn.Linear(self.aasist_feat_dim, 2)
+            nn.Linear(self.ser_feat_dim, 2)
         )
 
     def extract_mel_features(self, x):
@@ -87,7 +87,7 @@ class AASISTWithEmotion(nn.Module):
             aasist_feat, _ = self.aasist(x, Freq_aug=Freq_aug)
             ser_feat = self.ser(self.extract_mel_features(x))
 
-        e1 = self.film_block(aasist_feat, ser_feat)
+        e1 = self.film_block(ser_feat, aasist_feat)
         
         output = self.classifier(e1)
         
