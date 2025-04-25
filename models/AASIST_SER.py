@@ -13,7 +13,7 @@ class FiLMBlock(nn.Module):
         self.condition_to_gamma_beta = nn.Sequential(
             nn.Linear(cm_dim, 2 * sv_dim),
             nn.ReLU(),
-            nn.BatchNorm1d(cm_dim),
+            nn.BatchNorm1d(2 * sv_dim),
         )
         
         self.sv_ln = nn.LayerNorm(sv_dim)
