@@ -136,7 +136,6 @@ def main(args: argparse.Namespace) -> None:
 
         evaluate_per_emotion(model, device, config['emo_bonafide'], config['emo_spoof'])
 
-
         produce_evaluation_file(dev_loader, model, device,
                                 metric_path/"dev_score.txt", dev_trial_path)
         dev_eer, dev_tdcf = calculate_tDCF_EER(
@@ -189,7 +188,7 @@ def evaluate_per_emotion(model, device, esd_dir, zonos_dir):
         
         eer, _ = compute_eer(esd_scores, zonos_scores)
         
-        print(f"EER for {emotion}: {eer}")
+        print(f"EER for {emotion}: {eer * 100}")
 
 def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
     model = AASISTWithEmotion(
