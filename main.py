@@ -49,7 +49,7 @@ def main(args: argparse.Namespace) -> None:
         config["freq_aug"] = "False"
 
     # make experiment reproducible
-    set_seed(args.seed, config)
+    set_seed(42, config)
 
     # define database related paths
     output_dir = Path(args.output_dir)
@@ -194,11 +194,15 @@ def evaluate_per_emotion(model, device, esd_dir, zonos_dir):
 def run_inference_on_folder(model, device, folder_path):
     audio_files = [f.stem for f in folder_path.glob("*.flac")]
     test_dataset = Dataset_Custom(list_IDs=audio_files, base_dir=folder_path)
+
+    gen = torch.Generator()
+    gen.manual_seed(42)
     
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
         batch_size=24,
         shuffle=False,
+        generator=gen
     )
 
     results = []
