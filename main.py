@@ -108,7 +108,9 @@ def main(args: argparse.Namespace) -> None:
 
     optimizer = torch.optim.Adam(
         [
-            {'params': model.test_linear.parameters()}
+            {'params': model.film.parameters()},
+            {'params': model.gated_block.parameters()},
+            {'params': model.classifier.parameters()}
         ],
         lr=optim_config["base_lr"],
         betas=tuple(optim_config["betas"]),
@@ -153,7 +155,9 @@ def main(args: argparse.Namespace) -> None:
         #     best_dev_eer = dev_eer
 
         model_state = {
-            'linear': model.test_linear.state_dict(),
+            'film': model.film.state_dict(),
+            'gated_block': model.gated_block.state_dict(),
+            'classifier': model.classifier.state_dict()
         }
 
         torch.save(
