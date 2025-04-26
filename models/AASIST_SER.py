@@ -115,7 +115,7 @@ class AASISTWithEmotion(nn.Module):
             aasist_feat, aasist_proba = self.aasist(x, Freq_aug=Freq_aug)
             ser_feat = self.ser(self.extract_mel_features(x))
 
-        e_mod1 = self.film(aasist_feat, ser_feat)
+        e_mod1 = self.film(ser_feat, aasist_feat)
         modulated_features = self.gated_block(e_mod1, ser_feat, aasist_proba)
 
         output = self.classifier(modulated_features)
