@@ -22,7 +22,6 @@ from data_utils import (Dataset_ASVspoof2019_train,
                         Dataset_ASVspoof2019_devNeval, genSpoof_list, Dataset_Custom)
 from evaluation import calculate_tDCF_EER, compute_eer
 from utils import create_optimizer, seed_worker, set_seed, str_to_bool
-from inference import run_inference_on_folder
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
