@@ -109,7 +109,6 @@ def main(args: argparse.Namespace) -> None:
     optimizer = torch.optim.Adam(
         [
             {'params': model.film.parameters()},
-            {'params': model.gated_block.parameters()},
             {'params': model.classifier.parameters()}
         ],
         lr=optim_config["base_lr"],
@@ -156,7 +155,6 @@ def main(args: argparse.Namespace) -> None:
 
         model_state = {
             'film': model.film.state_dict(),
-            'gated_block': model.gated_block.state_dict(),
             'classifier': model.classifier.state_dict()
         }
 
