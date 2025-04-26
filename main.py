@@ -11,6 +11,7 @@ from importlib import import_module
 from pathlib import Path
 from shutil import copy
 from typing import Dict, List, Union
+import numpy as np
 
 import torch
 import torch.nn as nn
@@ -166,22 +167,25 @@ def main(args: argparse.Namespace) -> None:
 
     print('End of training')
 
-    # print("Start evaluation...")
-    # produce_evaluation_file(eval_loader, model, device,
-    #                         eval_score_path, eval_trial_path)
-    # calculate_tDCF_EER(cm_scores_file=eval_score_path,
-    #                     output_file=model_tag / "t-DCF_EER.txt")
-    # print("DONE.")
-    # eval_eer, eval_tdcf = calculate_tDCF_EER(
-    #     cm_scores_file=eval_score_path,
-    #     output_file=model_tag/"loaded_model_t-DCF_EER.txt")
-    # print(eval_eer, eval_tdcf)
+    print("Start evaluation...")
+    produce_evaluation_file(eval_loader, model, device,
+                            eval_score_path, eval_trial_path)
+    calculate_tDCF_EER(cm_scores_file=eval_score_path,
+                        output_file=model_tag / "t-DCF_EER.txt")
+    print("DONE.")
+    eval_eer, eval_tdcf = calculate_tDCF_EER(
+        cm_scores_file=eval_score_path,
+        output_file=model_tag/"loaded_model_t-DCF_EER.txt")
+    print(eval_eer, eval_tdcf)
 
 
 def evaluate_per_emotion(model, device, esd_dir, zonos_dir):
+    model.eval()
+
     emotions = ["angry_flac", "happy_flac", "neutral_flac", "sad_flac", "surprised_flac"]
     for emotion in emotions:
         print(f'Validating emotion: {emotion}')
+        
         esd_scores = run_inference_on_folder(model, device, Path(esd_dir) / emotion)
         
         zonos_scores = run_inference_on_folder(model, device, Path(zonos_dir) / emotion)
@@ -189,6 +193,25 @@ def evaluate_per_emotion(model, device, esd_dir, zonos_dir):
         eer, _ = compute_eer(esd_scores, zonos_scores)
         
         print(f"EER for {emotion}: {eer * 100}")
+
+def run_inference_on_folder(model, device, folder_path):
+    audio_files = [f.stem for f in folder_path.glob("*.flac")]
+    test_dataset = Dataset_Custom(list_IDs=audio_files, base_dir=folder_path)
+    
+    test_loader = torch.utils.data.DataLoader(
+        test_dataset,
+        batch_size=24,
+        shuffle=False,
+    )
+
+    results = []
+    for batch_x, _ in test_loader:
+        batch_x = batch_x.to(device)
+        with torch.no_grad():
+            _, batch_out = model(batch_x)
+            batch_score = (batch_out[:, 1]).data.cpu().numpy().ravel()
+        results.extend(batch_score.tolist())
+    return np.array(results)
 
 def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
     model = AASISTWithEmotion(

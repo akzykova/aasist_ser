@@ -2,18 +2,18 @@ import torch
 import torch.nn as nn
 import torchaudio
 import torchaudio.transforms as T
-import torch.nn.functional as F
 from .AASIST import Model
 from .ACRNN import acrnn
 
 class FiLMBlock(nn.Module):
-    def __init__(self, sv_dim, cm_dim):
+    def __init__(self, sv_dim, cm_dim, hidden_dim=128):
         super().__init__()
         self.cm_ln = nn.LayerNorm(cm_dim)
         self.condition_to_gamma_beta = nn.Sequential(
-            nn.Linear(cm_dim, 2 * sv_dim),
+            nn.Linear(cm_dim, hidden_dim),
             nn.ReLU(),
-            nn.BatchNorm1d(2 * sv_dim),
+            nn.BatchNorm1d(hidden_dim),
+            nn.Linear(hidden_dim, 2 * sv_dim)
         )
         
         self.sv_ln = nn.LayerNorm(sv_dim)
@@ -29,6 +29,7 @@ class FiLMBlock(nn.Module):
         return e1
 
 
+
 class AASISTWithEmotion(nn.Module):
     def __init__(self, aasist_config, ser_config, n_mels=40, sample_rate=16000):
         super().__init__()
@@ -38,6 +39,8 @@ class AASISTWithEmotion(nn.Module):
         self.aasist.eval()
         for p in self.aasist.parameters():
             p.requires_grad = False
+
+        
 
         self.ser = acrnn()
         self.ser.load_state_dict(torch.load(ser_config["ser_path"]))
@@ -61,19 +64,8 @@ class AASISTWithEmotion(nn.Module):
 
         self.aasist_feat_dim = 5 * aasist_config["gat_dims"][1]
         self.ser_feat_dim = 256
+        self.test_linear = nn.Linear(self.aasist_feat_dim, 2)
 
-        self.film_block = FiLMBlock(
-            sv_dim=self.ser_feat_dim,
-            cm_dim=self.aasist_feat_dim
-        )
-        
-        self.classifier = nn.Sequential(
-            nn.Linear(self.ser_feat_dim, self.ser_feat_dim),
-            nn.LeakyReLU(),
-            nn.Linear(self.ser_feat_dim, self.ser_feat_dim),
-            nn.LeakyReLU(),
-            nn.Linear(self.ser_feat_dim, 2)
-        )
 
     def extract_mel_features(self, x):
         mel_spec = self.mel_transform(x)
@@ -85,13 +77,16 @@ class AASISTWithEmotion(nn.Module):
     def forward(self, x, Freq_aug=False):
         with torch.no_grad():
             aasist_feat, _ = self.aasist(x, Freq_aug=Freq_aug)
-            ser_feat = self.ser(self.extract_mel_features(x))
+            # ser_feat = self.ser(self.extract_mel_features(x))
 
-        e1 = self.film_block(ser_feat, aasist_feat)
+        # e_mod1 = self.film_block(aasist_feat, ser_feat)
+        # e_mod2 = self.post_film(e_mod1)
         
-        output = self.classifier(e1)
+        # output = self.classifier(e_mod2)
+
+        out = self.test_linear(aasist_feat)
         
-        return e1, output
+        return aasist_feat, out
 
     @property
     def device(self):
