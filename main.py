@@ -132,24 +132,25 @@ def main(args: argparse.Namespace) -> None:
     for epoch in range(config["num_epochs"]):
         print("Start training epoch{:03d}".format(epoch))
         running_loss = train_epoch(trn_loader, model, optimizer, device, config)
+        print(f"DONE. \n Loss: {running_loss:.5f}")
 
         evaluate_per_emotion(model, device, config['emo_bonafide'], config['emo_spoof'])
 
-        produce_evaluation_file(dev_loader, model, device,
-                                metric_path/"dev_score.txt", dev_trial_path)
-        dev_eer, dev_tdcf = calculate_tDCF_EER(
-            cm_scores_file=metric_path/"dev_score.txt",
-            output_file=metric_path/"dev_t-DCF_EER_{}epo.txt".format(epoch),
-            printout=False)
+        # produce_evaluation_file(dev_loader, model, device,
+        #                         metric_path/"dev_score.txt", dev_trial_path)
+        # dev_eer, dev_tdcf = calculate_tDCF_EER(
+        #     cm_scores_file=metric_path/"dev_score.txt",
+        #     output_file=metric_path/"dev_t-DCF_EER_{}epo.txt".format(epoch),
+        #     printout=False)
         
-        print("DONE.\nLoss:{:.5f}, dev_eer: {:.3f}, dev_tdcf:{:.5f}".format(
-            running_loss, dev_eer, dev_tdcf))
+        # print("DONE.\nLoss:{:.5f}, dev_eer: {:.3f}, dev_tdcf:{:.5f}".format(
+        #     running_loss, dev_eer, dev_tdcf))
         
         
-        best_dev_tdcf = min(dev_tdcf, best_dev_tdcf)
-        if best_dev_eer >= dev_eer:
-            print("best model find at epoch", epoch)
-            best_dev_eer = dev_eer
+        # best_dev_tdcf = min(dev_tdcf, best_dev_tdcf)
+        # if best_dev_eer >= dev_eer:
+        #     print("best model find at epoch", epoch)
+        #     best_dev_eer = dev_eer
 
         model_state = {
             'linear': model.test_linear.state_dict(),
@@ -164,16 +165,16 @@ def main(args: argparse.Namespace) -> None:
 
     print('End of training')
 
-    print("Start evaluation...")
-    produce_evaluation_file(eval_loader, model, device,
-                            eval_score_path, eval_trial_path)
-    calculate_tDCF_EER(cm_scores_file=eval_score_path,
-                        output_file=model_tag / "t-DCF_EER.txt")
-    print("DONE.")
-    eval_eer, eval_tdcf = calculate_tDCF_EER(
-        cm_scores_file=eval_score_path,
-        output_file=model_tag/"loaded_model_t-DCF_EER.txt")
-    print(eval_eer, eval_tdcf)
+    # print("Start evaluation...")
+    # produce_evaluation_file(eval_loader, model, device,
+    #                         eval_score_path, eval_trial_path)
+    # calculate_tDCF_EER(cm_scores_file=eval_score_path,
+    #                     output_file=model_tag / "t-DCF_EER.txt")
+    # print("DONE.")
+    # eval_eer, eval_tdcf = calculate_tDCF_EER(
+    #     cm_scores_file=eval_score_path,
+    #     output_file=model_tag/"loaded_model_t-DCF_EER.txt")
+    # print(eval_eer, eval_tdcf)
 
 
 def evaluate_per_emotion(model, device, esd_dir, zonos_dir):
