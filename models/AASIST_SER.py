@@ -7,6 +7,7 @@ from .ACRNN import acrnn
 
 class FiLMBlock(nn.Module):
     def __init__(self, sv_dim, cm_dim, hidden_dim=128):
+        #sv - emotions, cm - aasist
         super().__init__()
         self.cm_ln = nn.LayerNorm(cm_dim)
         self.condition_to_gamma_beta = nn.Sequential(
@@ -30,6 +31,31 @@ class FiLMBlock(nn.Module):
         e_mod1 = gamma * e_sv_norm + beta
 
         return e_mod1
+    
+class GatingBlock(nn.Module):
+    def __init__(self, sv_dim):
+        #sv - emotions, cm - aasist
+        super().__init__()
+        self.linear1 = nn.Sequential(
+            nn.ReLU(),
+            nn.Linear(sv_dim, sv_dim)
+        )
+        self.linear2 = nn.Sequential(
+            nn.ReLU(),
+            nn.Linear(sv_dim, sv_dim)
+        )
+
+        self.softmax_layer = nn.Softmax(dim=-1)
+
+    def forward(self, e_mod1, e_sv, proba):
+        hidden = self.linear1(e_mod1)
+        e_mod2 = self.linear2(hidden)
+
+        p = self.softmax_layer(proba)
+        p_bona = p[:, 0].unsqueeze(-1)
+        p_spf = p[:, 1].unsqueeze(-1) 
+
+        return e_sv * p_bona + e_mod2 * p_spf
 
 
 
@@ -67,6 +93,7 @@ class AASISTWithEmotion(nn.Module):
         self.ser_feat_dim = 256
 
         self.film = FiLMBlock(self.ser_feat_dim, self.aasist_feat_dim)
+        self.gated_block = GatingBlock(self.ser_feat_dim)
         
         self.classifier = nn.Sequential(
             nn.Linear(self.ser_feat_dim, 256),
@@ -88,11 +115,12 @@ class AASISTWithEmotion(nn.Module):
 
     def forward(self, x, Freq_aug=False):
         with torch.no_grad():
-            aasist_feat, _ = self.aasist(x, Freq_aug=Freq_aug)
+            aasist_feat, aasist_proba = self.aasist(x, Freq_aug=Freq_aug)
             ser_feat = self.ser(self.extract_mel_features(x))
 
-        modulated_features = self.film(ser_feat, aasist_feat)
-        
+        e_mod1 = self.film(ser_feat, aasist_feat)
+        modulated_features = self.gated_block(e_mod1, ser_feat, aasist_proba)
+
         output = self.classifier(modulated_features)
         
         return modulated_features, output
