@@ -228,17 +228,17 @@ def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
             #     model.aasist.load_state_dict(state_dict['aasist'])
             #     print("✓ AASIST weights loaded")
             
-            if 'film' in state_dict:
-                model.film.load_state_dict(state_dict['film'])
-                print("✓ FiLM block weights loaded")
+            # if 'film' in state_dict:
+            #     model.film.load_state_dict(state_dict['film'])
+            #     print("✓ FiLM block weights loaded")
             
-            if 'gated_block' in state_dict:
-                model.gated_block.load_state_dict(state_dict['gated_block'])
-                print("✓ Post-FiLM block weights loaded")
+            # if 'gated_block' in state_dict:
+            #     model.gated_block.load_state_dict(state_dict['gated_block'])
+            #     print("✓ Post-FiLM block weights loaded")
             
-            if 'classifier' in state_dict:
-                model.classifier.load_state_dict(state_dict['classifier'])
-                print("✓ Classifier weights loaded")
+            # if 'classifier' in state_dict:
+            #     model.classifier.load_state_dict(state_dict['classifier'])
+            #     print("✓ Classifier weights loaded")
             
         except Exception as e:
             print(f"\nError loading weights: {str(e)}")
@@ -250,12 +250,12 @@ def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
     total_params = count_params(model)
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     
-    print("\nModel summary:")
-    #print(f"- AASIST: {count_params(model.aasist):,} params")
-    print(f"- FiLM block: {count_params(model.film):,} params")
-    print(f"- Gated-FiLM block: {count_params(model.gated_block):,} params")
-    print(f"- Classifier: {count_params(model.classifier):,} params")
-    print(f"Total: {total_params:,} params (Trainable: {trainable_params:,})")
+    # print("\nModel summary:")
+    # #print(f"- AASIST: {count_params(model.aasist):,} params")
+    # print(f"- FiLM block: {count_params(model.film):,} params")
+    # print(f"- Gated-FiLM block: {count_params(model.gated_block):,} params")
+    # print(f"- Classifier: {count_params(model.classifier):,} params")
+    # print(f"Total: {total_params:,} params (Trainable: {trainable_params:,})")
     
     return model
 
