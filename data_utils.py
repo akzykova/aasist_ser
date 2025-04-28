@@ -3,6 +3,7 @@ import soundfile as sf
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset
+import librosa
 
 ___author__ = "Hemlata Tak, Jee-weon Jung"
 __email__ = "tak@eurecom.fr, jeeweon.jung@navercorp.com"
@@ -72,7 +73,7 @@ class Dataset_Custom(Dataset):
     def __getitem__(self, index):
         key = self.list_IDs[index]
         # Read .flac audio file
-        X, _ = sf.read(str(self.base_dir / f"{key}.flac"))
+        X, _ = librosa.load(str(self.base_dir / f"{key}.flac"), sr = 16000)
         X_pad = pad(X, self.cut)
 
         max_val = np.max(np.abs(X_pad))
