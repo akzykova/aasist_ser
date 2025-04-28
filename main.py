@@ -367,6 +367,9 @@ def produce_evaluation_file(
             fh.write("{} {} {} {}\n".format(utt_id, src, key, sco))
     print("Scores saved to {}".format(save_path))
 
+def set_bn_eval(m):
+    if isinstance(m, torch.nn.modules.batchnorm._BatchNorm):
+        m.eval()
 
 def train_epoch(
     trn_loader: DataLoader,
@@ -379,6 +382,7 @@ def train_epoch(
     ii = 0
     num_total = 0.0
     model.train()
+    model.apply(set_bn_eval)
 
     # set objective (Loss) functions
     weight = torch.FloatTensor([0.1, 0.9]).to(device)
@@ -398,7 +402,7 @@ def train_epoch(
         optim.zero_grad()
         batch_loss.backward()
 
-        #optim.step()
+        optim.step()
         
         pbar.set_postfix({
             'loss': batch_loss.item()
