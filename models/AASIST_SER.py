@@ -66,10 +66,10 @@ class AASISTWithEmotion(nn.Module):
         self.aasist_feat_dim = 5 * aasist_config["gat_dims"][1]
         self.ser_feat_dim = 256
 
-        self.film = FiLMBlock(self.ser_feat_dim, self.aasist_feat_dim)
+        self.film = FiLMBlock(self.aasist_feat_dim, self.ser_feat_dim)
         
         self.classifier = nn.Sequential(
-            nn.Linear(self.ser_feat_dim, 256),
+            nn.Linear(self.aasist_feat_dim, 256),
             nn.BatchNorm1d(256),
             nn.LeakyReLU(),
             nn.Dropout(0.3),
@@ -91,7 +91,7 @@ class AASISTWithEmotion(nn.Module):
             aasist_feat, _ = self.aasist(x, Freq_aug=Freq_aug)
             ser_feat = self.ser(self.extract_mel_features(x))
 
-        modulated_features = self.film(ser_feat, aasist_feat)
+        modulated_features = self.film(aasist_feat, ser_feat)
         
         output = self.classifier(modulated_features)
         

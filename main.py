@@ -232,8 +232,8 @@ def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
             #     model.aasist.load_state_dict(state_dict['aasist'])
             #     print("✓ AASIST weights loaded")
             
-            if 'film' in state_dict:
-                model.film.load_state_dict(state_dict['film'])
+            if 'film_block' in state_dict:
+                model.film_block.load_state_dict(state_dict['film_block'])
                 print("✓ FiLM block weights loaded")
             
             # if 'post_film' in state_dict:
@@ -256,9 +256,9 @@ def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
     
     print("\nModel summary:")
     #print(f"- AASIST: {count_params(model.aasist):,} params")
-    print(f"- FiLM block: {count_params(model.film):,} params")
+    #print(f"- FiLM block: {count_params(model.film_block):,} params")
     #print(f"- Post-FiLM block: {count_params(model.post_film):,} params")
-    print(f"- Classifier: {count_params(model.classifier):,} params")
+    #print(f"- Classifier: {count_params(model.classifier):,} params")
     print(f"Total: {total_params:,} params (Trainable: {trainable_params:,})")
     
     return model
