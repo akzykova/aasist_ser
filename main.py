@@ -154,11 +154,7 @@ def main(args: argparse.Namespace) -> None:
         #     print("best model find at epoch", epoch)
         #     best_dev_eer = dev_eer
 
-        model_state = {
-            'film': model.film.state_dict(),
-            'gated_block': model.gated_block.state_dict(),
-            'classifier': model.classifier.state_dict()
-        }
+        model_state = model.state_dict()
 
         torch.save(
             model_state,
