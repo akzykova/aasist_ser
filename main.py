@@ -94,21 +94,22 @@ def main(args: argparse.Namespace) -> None:
     if args.eval:
         print("Start evaluation...")
         evaluate_per_emotion(model, device, config['emo_bonafide'], config['emo_spoof'])
-        # evaluate_per_emotion(model, device, config['emo_bonafide'], config['emo_spoof'])
 
-        # produce_evaluation_file(eval_loader, model, device,
-        #                         eval_score_path, eval_trial_path)
-        # calculate_tDCF_EER(cm_scores_file=eval_score_path,
-        #                    output_file=model_tag / "t-DCF_EER.txt")
-        # print("DONE.")
-        # eval_eer, eval_tdcf = calculate_tDCF_EER(
-        #     cm_scores_file=eval_score_path,
-        #     output_file=model_tag/"loaded_model_t-DCF_EER.txt")
-        # print(eval_eer, eval_tdcf)
+        produce_evaluation_file(eval_loader, model, device,
+                                eval_score_path, eval_trial_path)
+        calculate_tDCF_EER(cm_scores_file=eval_score_path,
+                           output_file=model_tag / "t-DCF_EER.txt")
+        print("DONE.")
+        eval_eer, eval_tdcf = calculate_tDCF_EER(
+            cm_scores_file=eval_score_path,
+            output_file=model_tag/"loaded_model_t-DCF_EER.txt")
+        print(eval_eer, eval_tdcf)
         sys.exit(0)
 
     optimizer = torch.optim.Adam(
         [
+            {'params': model.film.parameters()},
+            {'params': model.gated_block.parameters()},
             {'params': model.classifier.parameters()}
         ],
         lr=optim_config["base_lr"],
@@ -116,6 +117,7 @@ def main(args: argparse.Namespace) -> None:
         weight_decay=optim_config["weight_decay"],
         amsgrad=optim_config["amsgrad"]
     )
+
 
     best_dev_eer = 1.
     best_eval_eer = 100.
@@ -228,17 +230,17 @@ def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
             #     model.aasist.load_state_dict(state_dict['aasist'])
             #     print("✓ AASIST weights loaded")
             
-            # if 'film' in state_dict:
-            #     model.film.load_state_dict(state_dict['film'])
-            #     print("✓ FiLM block weights loaded")
+            if 'film' in state_dict:
+                model.film.load_state_dict(state_dict['film'])
+                print("✓ FiLM block weights loaded")
             
-            # if 'gated_block' in state_dict:
-            #     model.gated_block.load_state_dict(state_dict['gated_block'])
-            #     print("✓ Post-FiLM block weights loaded")
+            if 'gated_block' in state_dict:
+                model.gated_block.load_state_dict(state_dict['gated_block'])
+                print("✓ Post-FiLM block weights loaded")
             
-            # if 'classifier' in state_dict:
-            #     model.classifier.load_state_dict(state_dict['classifier'])
-            #     print("✓ Classifier weights loaded")
+            if 'classifier' in state_dict:
+                model.classifier.load_state_dict(state_dict['classifier'])
+                print("✓ Classifier weights loaded")
             
         except Exception as e:
             print(f"\nError loading weights: {str(e)}")
@@ -250,10 +252,10 @@ def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
     total_params = count_params(model)
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     
-    # print("\nModel summary:")
-    # #print(f"- AASIST: {count_params(model.aasist):,} params")
+    print("\nModel summary:")
+    #print(f"- AASIST: {count_params(model.aasist):,} params")
     # print(f"- FiLM block: {count_params(model.film):,} params")
-    # print(f"- Gated-FiLM block: {count_params(model.gated_block):,} params")
+    # print(f"- Gated block: {count_params(model.gated_block):,} params")
     # print(f"- Classifier: {count_params(model.classifier):,} params")
     # print(f"Total: {total_params:,} params (Trainable: {trainable_params:,})")
     
@@ -361,9 +363,6 @@ def produce_evaluation_file(
             fh.write("{} {} {} {}\n".format(utt_id, src, key, sco))
     print("Scores saved to {}".format(save_path))
 
-def set_bn_eval(m):
-    if isinstance(m, torch.nn.modules.batchnorm._BatchNorm):
-        m.eval()
 
 def train_epoch(
     trn_loader: DataLoader,
@@ -376,7 +375,6 @@ def train_epoch(
     ii = 0
     num_total = 0.0
     model.train()
-    model.apply(set_bn_eval)
 
     # set objective (Loss) functions
     weight = torch.FloatTensor([0.1, 0.9]).to(device)
