@@ -133,8 +133,8 @@ def main(args: argparse.Namespace) -> None:
     # Training
     for epoch in range(config["num_epochs"]):
         print("Start training epoch{:03d}".format(epoch))
-        #running_loss = train_epoch(trn_loader, model, optimizer, device, config)
-        #print(f"DONE. \n Loss: {running_loss:.5f}")
+        running_loss = train_epoch(trn_loader, model, optimizer, device, config)
+        print(f"DONE. \n Loss: {running_loss:.5f}")
 
         evaluate_per_emotion(model, device, config['emo_bonafide'], config['emo_spoof'])
 
