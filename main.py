@@ -108,9 +108,7 @@ def main(args: argparse.Namespace) -> None:
 
     optimizer = torch.optim.Adam(
         [
-            {'params': model.film.parameters()},
-            {'params': model.gated_block.parameters()},
-            {'params': model.classifier.parameters()}
+            {'params': model.test_linear.parameters()}
         ],
         lr=optim_config["base_lr"],
         betas=tuple(optim_config["betas"]),
