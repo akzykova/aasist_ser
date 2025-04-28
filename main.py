@@ -94,16 +94,17 @@ def main(args: argparse.Namespace) -> None:
     if args.eval:
         print("Start evaluation...")
         evaluate_per_emotion(model, device, config['emo_bonafide'], config['emo_spoof'])
+        # evaluate_per_emotion(model, device, config['emo_bonafide'], config['emo_spoof'])
 
-        produce_evaluation_file(eval_loader, model, device,
-                                eval_score_path, eval_trial_path)
-        calculate_tDCF_EER(cm_scores_file=eval_score_path,
-                           output_file=model_tag / "t-DCF_EER.txt")
-        print("DONE.")
-        eval_eer, eval_tdcf = calculate_tDCF_EER(
-            cm_scores_file=eval_score_path,
-            output_file=model_tag/"loaded_model_t-DCF_EER.txt")
-        print(eval_eer, eval_tdcf)
+        # produce_evaluation_file(eval_loader, model, device,
+        #                         eval_score_path, eval_trial_path)
+        # calculate_tDCF_EER(cm_scores_file=eval_score_path,
+        #                    output_file=model_tag / "t-DCF_EER.txt")
+        # print("DONE.")
+        # eval_eer, eval_tdcf = calculate_tDCF_EER(
+        #     cm_scores_file=eval_score_path,
+        #     output_file=model_tag/"loaded_model_t-DCF_EER.txt")
+        # print(eval_eer, eval_tdcf)
         sys.exit(0)
 
     optimizer = torch.optim.Adam(
@@ -232,13 +233,13 @@ def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
             #     model.aasist.load_state_dict(state_dict['aasist'])
             #     print("✓ AASIST weights loaded")
             
-            if 'film_block' in state_dict:
-                model.film_block.load_state_dict(state_dict['film_block'])
+            if 'film' in state_dict:
+                model.film.load_state_dict(state_dict['film'])
                 print("✓ FiLM block weights loaded")
             
-            # if 'post_film' in state_dict:
-            #     model.post_film.load_state_dict(state_dict['post_film'])
-            #     print("✓ Post-FiLM block weights loaded")
+            if 'gated_block' in state_dict:
+                model.gated_block.load_state_dict(state_dict['gated_block'])
+                print("✓ Post-FiLM block weights loaded")
             
             if 'classifier' in state_dict:
                 model.classifier.load_state_dict(state_dict['classifier'])
@@ -256,9 +257,9 @@ def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
     
     print("\nModel summary:")
     #print(f"- AASIST: {count_params(model.aasist):,} params")
-    #print(f"- FiLM block: {count_params(model.film_block):,} params")
-    #print(f"- Post-FiLM block: {count_params(model.post_film):,} params")
-    #print(f"- Classifier: {count_params(model.classifier):,} params")
+    print(f"- FiLM block: {count_params(model.film):,} params")
+    print(f"- Gated-FiLM block: {count_params(model.gated_block):,} params")
+    print(f"- Classifier: {count_params(model.classifier):,} params")
     print(f"Total: {total_params:,} params (Trainable: {trainable_params:,})")
     
     return model
