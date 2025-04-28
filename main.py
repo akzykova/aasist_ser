@@ -398,7 +398,7 @@ def train_epoch(
         optim.zero_grad()
         batch_loss.backward()
 
-        optim.step()
+        #optim.step()
         
         pbar.set_postfix({
             'loss': batch_loss.item()
