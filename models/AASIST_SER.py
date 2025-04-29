@@ -36,18 +36,18 @@ class AASISTWithEmotion(nn.Module):
         super().__init__()
         
         self.aasist = Model(aasist_config)
-        self.aasist.load_state_dict(torch.load(aasist_config["aasist_path"]))
-        self.aasist.eval()
-        for p in self.aasist.parameters():
-            p.requires_grad = False
+        # self.aasist.load_state_dict(torch.load(aasist_config["aasist_path"]))
+        # self.aasist.eval()
+        # for p in self.aasist.parameters():
+        #     p.requires_grad = False
 
         
 
         self.ser = acrnn()
-        self.ser.load_state_dict(torch.load(ser_config["ser_path"]))
-        self.ser.eval()
-        for p in self.ser.parameters():
-            p.requires_grad = False
+        # self.ser.load_state_dict(torch.load(ser_config["ser_path"]))
+        # self.ser.eval()
+        # for p in self.ser.parameters():
+        #     p.requires_grad = False
 
         self.n_mels = n_mels
         self.sample_rate = sample_rate

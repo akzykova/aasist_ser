@@ -214,6 +214,7 @@ def run_inference_on_folder(model, device, folder_path):
     return np.array(results)
 
 def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
+    print('Getting the model....')
     model = AASISTWithEmotion(
         aasist_config=model_config["aasist_config"],
         ser_config=model_config["ser_config"]
@@ -223,28 +224,18 @@ def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
         print(f"\nLoading weights from {model_config['model_path']}")
         try:
             state_dict = torch.load(model_config["model_path"], map_location=device)
-
-            model.load_state_dict(state_dict)
-
-            # if 'aasist' in state_dict:
-            #     model.aasist.load_state_dict(state_dict['aasist'])
-            #     print("✓ AASIST weights loaded")
+            # Строгий режим можно отключить, если есть несоответствия
+            model.load_state_dict(state_dict, strict=False)
             
-            # if 'film' in state_dict:
-            #     model.film.load_state_dict(state_dict['film'])
-            #     print("✓ FiLM block weights loaded")
-            
-            # if 'gated_block' in state_dict:
-            #     model.gated_block.load_state_dict(state_dict['gated_block'])
-            #     print("✓ Post-FiLM block weights loaded")
-            
-            # if 'classifier' in state_dict:
-            #     model.classifier.load_state_dict(state_dict['classifier'])
-            #     print("✓ Classifier weights loaded")
-            
+            # Дополнительная проверка
+            missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
+            if missing_keys:
+                print(f"Warning: Missing keys: {missing_keys}")
+            if unexpected_keys:
+                print(f"Warning: Unexpected keys: {unexpected_keys}")
         except Exception as e:
-            print(f"\nError loading weights: {str(e)}")
-            raise
+            print(f"Error loading model weights: {e}")
+            # Можно инициализировать модель с нулевыми весами или выйти
     
     def count_params(module):
         return sum(p.numel() for p in module.parameters())
