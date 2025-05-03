@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from typing import Dict, List, Union
-from models.AASIST_SER import AASISTWithEmotion
+from models.AASIST_GFILM import AASISTWithEmotion
 from data_utils import Dataset_Custom
 
 def set_seed(seed: int = 42):

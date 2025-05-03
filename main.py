@@ -26,7 +26,9 @@ from utils import create_optimizer, seed_worker, set_seed, str_to_bool
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 
-from models.AASIST_SER import AASISTWithEmotion
+from models.AASIST_GFILM import AASISTGFILM
+from models.AASIST_Concat import AASISTConcat
+from models.AASIST_FILM import AASISTFILM
 
 from tqdm import tqdm
 
@@ -49,7 +51,7 @@ def main(args: argparse.Namespace) -> None:
         config["freq_aug"] = "False"
 
     # make experiment reproducible
-    set_seed(42, config)
+    set_seed(args.seed, config)
 
     # define database related paths
     output_dir = Path(args.output_dir)
@@ -214,8 +216,8 @@ def run_inference_on_folder(model, device, folder_path):
         results.extend(batch_score.tolist())
     return np.array(results)
 
-def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
-    print('Getting the model....')
+def get_model(model_config: Dict, device: torch.device):
+    
     model = AASISTWithEmotion(
         aasist_config=model_config["aasist_config"],
         ser_config=model_config["ser_config"]
@@ -225,10 +227,8 @@ def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
         print(f"\nLoading weights from {model_config['model_path']}")
         try:
             state_dict = torch.load(model_config["model_path"], map_location=device)
-            # Строгий режим можно отключить, если есть несоответствия
             model.load_state_dict(state_dict, strict=False)
             
-            # Дополнительная проверка
             missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
             if missing_keys:
                 print(f"Warning: Missing keys: {missing_keys}")
@@ -236,7 +236,6 @@ def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
                 print(f"Warning: Unexpected keys: {unexpected_keys}")
         except Exception as e:
             print(f"Error loading model weights: {e}")
-            # Можно инициализировать модель с нулевыми весами или выйти
     
     def count_params(module):
         return sum(p.numel() for p in module.parameters())
@@ -245,11 +244,7 @@ def get_model(model_config: Dict, device: torch.device) -> AASISTWithEmotion:
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     
     print("\nModel summary:")
-    #print(f"- AASIST: {count_params(model.aasist):,} params")
-    # print(f"- FiLM block: {count_params(model.film):,} params")
-    # print(f"- Gated block: {count_params(model.gated_block):,} params")
-    # print(f"- Classifier: {count_params(model.classifier):,} params")
-    # print(f"Total: {total_params:,} params (Trainable: {trainable_params:,})")
+    print(f"Total: {total_params:,} params (Trainable: {trainable_params:,})")
     
     return model
 
