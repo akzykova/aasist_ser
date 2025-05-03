@@ -63,8 +63,8 @@ def pad_random(x: np.ndarray, max_len: int = 64600):
 class Dataset_Custom(Dataset):
     def __init__(self, list_IDs, base_dir):
         """list_IDs : list of strings (each string: filename of audio file without extension)"""
-        self.list_IDs = list_IDs  # Audio File names
-        self.base_dir = base_dir  # Directory containing audio files
+        self.list_IDs = list_IDs
+        self.base_dir = base_dir
         self.cut = 64600 
 
     def __len__(self):
@@ -72,7 +72,6 @@ class Dataset_Custom(Dataset):
 
     def __getitem__(self, index):
         key = self.list_IDs[index]
-        # Read .flac audio file
         X, _ = librosa.load(str(self.base_dir / f"{key}.flac"), sr = 16000)
         X_pad = pad(X, self.cut)
 
