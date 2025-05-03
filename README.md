@@ -1,158 +1,79 @@
-# AASIST
+## Emotion-Aware AASIST: Антиспуфинг с учётом эмоций
 
-This repository provides the overall framework for training and evaluating audio anti-spoofing systems proposed in ['AASIST: Audio Anti-Spoofing using Integrated Spectro-Temporal Graph Attention Networks'](https://arxiv.org/abs/2110.01200)
+Данный репозиторий содержит фреймворк для обучения и оценки систем аудио-антиспуфинга с учётом эмоциональной окраски речи. Исходная архитектура AASIST расширена за счёт интеграции эмоциональных эмбеддингов через несколько схем:
 
-### Getting started
-`requirements.txt` must be installed for execution. We state our experiment environment for those who prefer to simulate as similar as possible. 
-- Installing dependencies
-```
-pip install -r requirements.txt
-```
-- Our environment (for GPU training)
-  - Based on a docker image: `pytorch:1.6.0-cuda10.1-cudnn7-runtime`
-  - GPU: 1 NVIDIA Tesla V100
-    - About 16GB is required to train AASIST using a batch size of 24
-  - gpu-driver: 418.67
+* **AASIST\_Concat** — конкатенация эмбеддингов с feature-картами;
+* **AASIST\_FiLM** — Feature-wise Linear Modulation (FiLM) для масштабирования и смещения активаций;
+* **AASIST\_GFiLM** — модифицированная схема FiLM с дополнительным gating-механизмом.
 
-### Data preparation
-We train/validate/evaluate AASIST using the ASVspoof 2019 logical access dataset [4].
-```
-python ./download_dataset.py
-```
-(Alternative) Manual preparation is available via 
-- ASVspoof2019 dataset: https://datashare.ed.ac.uk/handle/10283/3336
-  1. Download `LA.zip` and unzip it
-  2. Set your dataset directory in the configuration file
+### Начало работы
 
-### Training 
-The `main.py` includes train/validation/evaluation.
+1. Клонируйте репозиторий:
 
-To train AASIST [1]:
-```
-python main.py --config ./config/AASIST.conf
-```
-To train AASIST-L [1]:
-```
-python main.py --config ./config/AASIST-L.conf
-```
+   ```bash
+   git clone <URL-репозитория>
+   cd <папка с проектом>
+   ```
+2. Установите зависимости:
 
-#### Training baselines
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-We additionally enabled the training of RawNet2[2] and RawGAT-ST[3]. 
+   Рекомендуемое окружение для GPU-тренировки:
 
-To Train RawNet2 [2]:
-```
-python main.py --config ./config/RawNet2_baseline.conf
-```
+   * GPU: NVIDIA Tesla V100 (не менее 16 ГБ памяти)
 
-To train RawGAT-ST [3]:
-```
-python main.py --config ./config/RawGATST_baseline.conf
-```
+### Подготовка данных
 
-### Pre-trained models
-We provide pre-trained AASIST and AASIST-L.
+1. **ASVspoof 2019 (Logical Access)**
 
-To evaluate AASIST [1]:
-- It shows `EER: 0.83%`, `min t-DCF: 0.0275`
-```
-python main.py --eval --config ./config/AASIST.conf
-```
-To evaluate AASIST-L [1]:
-- It shows `EER: 0.99%`, `min t-DCF: 0.0309`
-- Model has `85,306` parameters
-```
-python main.py --eval --config ./config/AASIST-L.conf
-```
+   ```bash
+   python download_dataset.py
+   ```
 
+   или вручную:
 
-### Developing custom models
-Simply by adding a configuration file and a model architecture, one can train and evaluate their models.
+   * Скачать и распаковать `LA.zip` с сайта [https://datashare.ed.ac.uk/handle/10283/3336](https://datashare.ed.ac.uk/handle/10283/3336)
+   * Указать путь к данным в конфигурации.
 
-To train a custom model:
-```
-1. Define your model
-  - The model should be a class named "Model"
-2. Make a configuration by modifying "model_config"
-  - architecture: filename of your model.
-  - hyper-parameters to be tuned can be also passed using variables in "model_config"
-3. run python main.py --config {CUSTOM_CONFIG_NAME}
+2. **Эмоциональный TTS-датасет**
+   Репликация аудио с различными эмоциями на основе ESD через Cosyvoice, Zonos и Emospeech.
+
+  ToDo
+
+### Конфигурации и обучение
+
+* **Оригинальный AASIST**:
+
+  ```bash
+  python main.py --config config/AASIST.conf
+  ```
+
+* **Расширенные модели с эмоциями**:
+
+  ```bash
+  python main.py --config config/AASIST_Concat.conf
+  python main.py --config config/AASIST_FiLM.conf
+  python main.py --config config/AASIST_GFiLM.conf
+  ```
+
+### Оценка моделей
+
+Для оценки предобученных моделей используйте флаг `--eval`:
+
+```bash
+python main.py --eval --config config/AASIST_Concat.conf
 ```
 
-### License
-```
-Copyright (c) 2021-present NAVER Corp.
+Вывод будет содержать EER и min t-DCF.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+### Разработка собственных моделей
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+1. Определите класс модели `Model` в новом файле Python.
+2. Создайте конфигурацию в `config/` (пример: `config/YourModel.conf`).
+3. Запустите обучение:
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-```
-
-### Acknowledgements
-This repository is built on top of several open source projects. 
-- [ASVspoof 2021 baseline repo](https://github.com/asvspoof-challenge/2021/tree/main/LA/Baseline-RawNet2)
-- [min t-DCF implementation](https://www.asvspoof.org/resources/tDCF_python_v2.zip)
-
-The repository for baseline RawGAT-ST model will be open
--  https://github.com/eurecom-asp/RawGAT-ST-antispoofing
-
-The dataset we use is ASVspoof 2019 [4]
-- https://www.asvspoof.org/index2019.html
-
-### References
-[1] AASIST: Audio Anti-Spoofing using Integrated Spectro-Temporal Graph Attention Networks
-```bibtex
-@INPROCEEDINGS{Jung2021AASIST,
-  author={Jung, Jee-weon and Heo, Hee-Soo and Tak, Hemlata and Shim, Hye-jin and Chung, Joon Son and Lee, Bong-Jin and Yu, Ha-Jin and Evans, Nicholas},
-  booktitle={arXiv preprint arXiv:2110.01200}, 
-  title={AASIST: Audio Anti-Spoofing using Integrated Spectro-Temporal Graph Attention Networks}, 
-  year={2021}
-```
-
-[2] End-to-End anti-spoofing with RawNet2
-```bibtex
-@INPROCEEDINGS{Tak2021End,
-  author={Tak, Hemlata and Patino, Jose and Todisco, Massimiliano and Nautsch, Andreas and Evans, Nicholas and Larcher, Anthony},
-  booktitle={Proc. ICASSP}, 
-  title={End-to-End anti-spoofing with RawNet2}, 
-  year={2021},
-  pages={6369-6373}
-}
-```
-
-[3] End-to-end spectro-temporal graph attention networks for speaker verification anti-spoofing and speech deepfake detection
-```bibtex
-@inproceedings{tak21_asvspoof,
-  author={Tak, Hemlata and Jung, Jee-weon and Patino, Jose and Kamble, Madhu and Todisco, Massimiliano and Evans, Nicholas},
-  booktitle={Proc. ASVSpoof Challenge},
-  title={End-to-end spectro-temporal graph attention networks for speaker verification anti-spoofing and speech deepfake detection},
-  year={2021},
-  pages={1--8}
-```
-
-[4] ASVspoof 2019: A large-scale public database of synthesized, converted and replayed speech
-```bibtex
-@article{wang2020asvspoof,
-  title={ASVspoof 2019: A large-scale public database of synthesized, converted and replayed speech},
-  author={Wang, Xin and Yamagishi, Junichi and Todisco, Massimiliano and Delgado, H{\'e}ctor and Nautsch, Andreas and Evans, Nicholas and Sahidullah, Md and Vestman, Ville and Kinnunen, Tomi and Lee, Kong Aik and others},
-  journal={Computer Speech \& Language},
-  volume={64},
-  pages={101114},
-  year={2020},
-  publisher={Elsevier}
-}
-```
+   ```bash
+   python main.py --config config/YourModel.conf
+   ```
