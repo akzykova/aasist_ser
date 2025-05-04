@@ -24,7 +24,6 @@ def download_weight(model_name, dest_folder="./models/weights"):
 
         output_path = os.path.join(dest_folder, f"{model_name}.pth")
         if os.path.exists(output_path):
-            print(f"⚠️  Файл для {model_name} уже существует: {output_path}")
             continue
 
         print(f"Скачивание весов для {model_name}...")

@@ -11,18 +11,28 @@ P.S. Название репозитория отражает концепцию
 * **AMSDF**
 * **AASIST\_WAV2VEC**
 
-### Начало работы
-
-1. Клонируйте репозиторий:
+### Клонирование репозитория и установка зависимостей
 
    ```bash
    git clone https://github.com/akzykova/aasist_ser.git
    cd aasist_ser
+   pip install -r requirements.txt
    ```
-2. Установите зависимости:
+
+   Для работы с моделями **AMSDF** и **AASIST\_WAV2VEC** предлагается следующая инструкция:
 
    ```bash
-   pip install -r requirements.txt
+   conda create -n SSL python=3.8 numpy=1.23.5
+   conda activate SSL
+   pip install torch==1.8.1+cu111 torchvision==0.9.1+cu111 torchaudio==0.8.1 -f https://download.pytorch.org/whl/torch_stable.html
+   --------------install fairseq--------------
+   git clone https://github.com/TakHemlata/SSL_Anti-spoofing.git
+   cd fairseq-a54021305d6b3c4c5959ac9395135f63202db8f1
+   pip install --editable ./
+   --------------install requirement--------------
+   git clone https://github.com/akzykova/aasist_ser.git
+   cd aasist_ser
+   pip install -r requirement.txt
    ```
 
    Рекомендуемое окружение для GPU-тренировки:
@@ -42,10 +52,10 @@ P.S. Название репозитория отражает концепцию
    * Скачать и распаковать `LA.zip` с сайта [https://datashare.ed.ac.uk/handle/10283/3336](https://datashare.ed.ac.uk/handle/10283/3336)
    * Указать путь к данным в конфигурации.
 
-2. **Эмоциональный TTS-датасет**
+2. **Dataset of Emotional Synthesized Speech**
    Вручную:
 
-   * Скачать и распаковать `Dataset.zip` с сайта [Kaggle] (https://www.kaggle.com/datasets/annazykovamyzina/dataset-of-synthesized-emotional-speech)
+   * Скачать и распаковать `Dataset.zip` с сайта https://www.kaggle.com/datasets/annazykovamyzina/dataset-of-synthesized-emotional-speech
    * Указать путь к данным в конфигурации
 
    ToDo:
@@ -55,13 +65,13 @@ P.S. Название репозитория отражает концепцию
 
 Обучение моделей производится на основе обучающей части ASVspoof 2019
 
-* **Оригинальный AASIST**:
+* **AASIST**:
 
   ```bash
   python main.py --config config/AASIST.conf
   ```
 
-* **Расширенные модели с эмоциями**:
+* **Модели с добавлением эмоциональных эмбэддингов**:
 
   ```bash
   python main.py --config config/AASIST_Concat.conf
@@ -83,22 +93,22 @@ P.S. Название репозитория отражает концепцию
 
 ### Оценка моделей (Evaluation)
 
-Для оценки предобученных моделей предлагается воспользоваться весами. Для загрузки весов указывайте модель:
+Для оценки предобученных моделей предлагается воспользоваться весами. Для загрузки весов укажите необходимую модель:
 
    ```bash
-   python download_weights.py --"AMSDF"
+   python download_weights.py --model "AMSDF"
    ``` 
 
-Для оценки предобученных моделей используйте флаг `--eval`:
+Перед оценкой модели убедитесь, что загруженные веса находятся в `./models/weights`. При запуске используйте флаг `--eval`:
 
 ```bash
 python main.py --eval --config config/AASIST_Concat.conf
 ```
 
-Вывод будет содержать EER для eval-части ASVspoof2019 и для всего Datset of Emotional Synthesized Speech, для каждой из эмоций (нейтральная, грусть, радость, гнев, удивление).
+Вывод будет содержать EER для eval-части ASVspoof2019 и для всего Datset of Emotional Synthesized Speech, для каждой из эмоций (нейтральная, грусть, радость, гнев, удивление) по отдельности.
 
 ### Запуск моделей (Inference)
-Также вы можете протестировать любую из 6 моделей на любых аудиозаписях в формате flac.
+Также после загрузки весов вы можете протестировать любую из 6 моделей на любых аудиозаписях в формате flac.
 
 ```bash
 python inference.py --config config/AASIST_Concat.conf --test_dir {test_dir}
