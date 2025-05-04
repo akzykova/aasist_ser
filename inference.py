@@ -8,6 +8,7 @@ import numpy as np
 from typing import Dict, List
 from data_utils import DatasetCustom
 from utils import set_seed
+from importlib import import_module
 
 from models.AASIST_GFILM import AASISTGFILM
 from models.AASIST_Concat import AASISTConcat
@@ -17,39 +18,17 @@ from models.AASIST import Model
 from models.AASIST_WAV2VEC import WAV2VECModel
 
 
-def get_model(model_name: str, model_config: Dict, device: torch.device):
-    print(f'Getting the model {model_name}....')
+def get_model(model_config: Dict, device: torch.device):
+    module = import_module("models.{}".format(model_config["architecture"]))
+    _model = getattr(module, "Model")
+    model = _model(model_config).to(device)
+    nb_params = sum([param.view(-1).size()[0] for param in model.parameters()])
+    print("no. model params:{}".format(nb_params))
 
-    model_map = {
-        "AASIST": Model,
-        "AASIST_Concat": AASISTConcat,
-        "AASIST_FILM": AASISTFILM,
-        "AASIST_GFILM": AASISTGFILM,
-        "AMSDF": Module,
-        "AASIST_WAV2VEC": WAV2VECModel
-    }
-    
-    if model_name not in model_map:
-        raise ValueError(f"Model {model_name} is not recognized!")
+    if model_config.get("model_path"):
+        model.load_state_dict(torch.load(model_config["model_path"], map_location=device))
+        print("Weights are downloaded from ", model_config["model_path"])
 
-    model_class = model_map[model_name]
-
-    if model_name in ["AASIST_Concat", "AASIST_FILM", "AASIST_GFILM"]:
-        model = model_class(
-            aasist_config=model_config["aasist_config"],
-            ser_config=model_config["ser_config"]
-        ).to(device)
-    else:
-        model = model_class().to(device)
-        
-    if "model_path" in model_config:
-        print(f"\nLoading weights from {model_config['model_path']}")
-        try:
-            state_dict = torch.load(model_config["model_path"], map_location=device)
-            model.load_state_dict(state_dict, strict=False)
-        except Exception as e:
-            print(f"Error loading model weights: {e}")
-    
     return model
 
 def save_results(results: List[tuple], output_file: str):
@@ -57,26 +36,23 @@ def save_results(results: List[tuple], output_file: str):
         for utt_id, score in results:
             f.write(f"{utt_id}: {score}\n")
 
-def run_inference(args: argparse.Namespace):
-    set_seed(args.seed)
-    
+def run_inference(args: argparse.Namespace):    
     with open(args.config, "r") as f_json:
         config = json.loads(f_json.read())
     
-    seed = config.get("seed", args.seed)
-    set_seed(seed)
+    set_seed(args.seed, config)
     
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Device: {device}")
-    print(f"Using seed: {seed}")
+    print(f"Using seed: {args.seed}")
 
-    model = get_model(args.model_choice, config["model_config"], device)
+    model = get_model(config["model_config"], device)
     model.eval()
 
     test_dataset = DatasetCustom(audio_dir=Path(args.test_dir))
     
     generator = torch.Generator()
-    generator.manual_seed(seed)
+    generator.manual_seed(args.seed)
     
     num_workers = min(4, os.cpu_count() // 2)
     test_loader = torch.utils.data.DataLoader(
@@ -91,16 +67,12 @@ def run_inference(args: argparse.Namespace):
     results = []
     for batch_x, batch_emo, _, filenames in test_loader:
         try:
-            batch_x = batch_x.float().cuda()
-            batch_emo = batch_emo.float().cuda()
+            batch_x = batch_x.float().to(device)
+            batch_emo = batch_emo.float().to(device)
             
             _, batch_out = model(batch_x, batch_emo)
             scores = batch_out[:, 1].data.cpu().numpy().ravel()
             results.extend(zip(filenames, map(float, scores)))
-            
-            del batch_x, batch_emo, batch_out
-            torch.cuda.empty_cache()
-            
         except Exception as e:
             print(f"\nError processing batch: {str(e)}")
             results.extend((f, None) for f in filenames)

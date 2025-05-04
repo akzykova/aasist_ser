@@ -28,9 +28,9 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 from models.AASIST_GFILM import AASISTGFILM
 from models.AASIST_Concat import AASISTConcat
 from models.AASIST_FILM import AASISTFILM
-from models.AMSDF import Module
+# from models.AMSDF import Module
 from models.AASIST import Model
-from models.AASIST_WAV2VEC import WAV2VECModel
+# from models.AASIST_WAV2VEC import WAV2VECModel
 
 from tqdm import tqdm
 
@@ -184,7 +184,7 @@ def evaluate_per_emotion(model, device, dataset_dir):
 
 def run_inference_on_folder(model, device, folder_path):
     audio_files = [f.stem for f in folder_path.glob("*.flac")]
-    test_dataset = Dataset_Custom(list_IDs=audio_files, base_dir=folder_path)
+    test_dataset = DatasetCustom(list_IDs=audio_files, base_dir=folder_path)
 
     gen = torch.Generator()
     gen.manual_seed(42)
@@ -217,38 +217,16 @@ def run_inference_on_folder(model, device, folder_path):
     return results
 
 def get_model(model_config: Dict, device: torch.device):
-    model_name = model_config["architecture"]
+    module = import_module("models.{}".format(model_config["architecture"]))
+    _model = getattr(module, "Model")
+    model = _model(model_config).to(device)
+    nb_params = sum([param.view(-1).size()[0] for param in model.parameters()])
+    print("no. model params:{}".format(nb_params))
 
-    model_map = {
-        "AASIST": Model,
-        "AASIST_Concat": AASISTConcat,
-        "AASIST_FILM": AASISTFILM,
-        "AASIST_GFILM": AASISTGFILM,
-        "AMSDF": Module,
-        "AASIST_WAV2VEC": WAV2VECModel
-    }
-    
-    if model_name not in model_map:
-        raise ValueError(f"Model {model_name} is not recognized!")
+    if model_config.get("model_path"):
+        model.load_state_dict(torch.load(model_config["model_path"], map_location=device))
+        print("Weights are downloaded from ", model_config["model_path"])
 
-    model_class = model_map[model_name]
-
-    if model_name in ["AASIST_Concat", "AASIST_FILM", "AASIST_GFILM"]:
-        model = model_class(
-            aasist_config=model_config["aasist_config"],
-            ser_config=model_config["ser_config"]
-        ).to(device)
-    else:
-        model = model_class().to(device)
-    
-    if "model_path" in model_config:
-        print(f"\nLoading weights from {model_config['model_path']}")
-        try:
-            state_dict = torch.load(model_config["model_path"], map_location=device)
-            model.load_state_dict(state_dict, strict=False)
-        except Exception as e:
-            print(f"Error loading model weights: {e}")
-    
     return model
 
 def get_loader(

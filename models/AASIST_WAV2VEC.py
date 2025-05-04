@@ -429,7 +429,7 @@ class Residual_block(nn.Module):
         return out
 
 
-class WAV2VECModel(nn.Module):
+class Model(nn.Module):
     def __init__(self, args,device):
         super().__init__()
         self.device = device

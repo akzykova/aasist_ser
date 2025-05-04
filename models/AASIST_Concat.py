@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from .AASIST import Model
 from .ACRNN import acrnn
 
-class AASISTConcat(nn.Module):
+class Model(nn.Module):
     def __init__(self, aasist_config, ser_config):
         super().__init__()
         

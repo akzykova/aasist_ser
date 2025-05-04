@@ -31,7 +31,7 @@ class FiLMBlock(nn.Module):
 
 
 
-class AASISTFILM(nn.Module):
+class Model(nn.Module):
     def __init__(self, aasist_config, ser_config):
         super().__init__()
         

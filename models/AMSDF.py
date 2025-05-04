@@ -113,7 +113,7 @@ class GRS(nn.Module):
         return torch.cat([pool_max,pool_avg], dim=1)
 
 
-class Module(nn.Module):
+class Model(nn.Module):
     def __init__(self):
         super(Module, self).__init__()
         """multi-view feature extractor"""
