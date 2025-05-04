@@ -21,7 +21,7 @@ class SSLModel(nn.Module):
     def __init__(self,device):
         super(SSLModel, self).__init__()
         
-        cp_path = 'xlsr2_300m.pt'   # Change the pre-trained XLSR model path. 
+        cp_path = './models/weights/xlsr2_300m.pt'   # Change the pre-trained XLSR model path. 
         model, cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task([cp_path])
         self.model = model[0]
         self.device=device
@@ -429,7 +429,7 @@ class Residual_block(nn.Module):
         return out
 
 
-class Model(nn.Module):
+class WAV2VECModel(nn.Module):
     def __init__(self, args,device):
         super().__init__()
         self.device = device
@@ -503,7 +503,7 @@ class Model(nn.Module):
         
         self.out_layer = nn.Linear(5 * gat_dims[1], 2)
 
-    def forward(self, x):
+    def forward(self, x, *args, **kwargs):
         #-------pre-trained Wav2vec model fine tunning ------------------------##
         x_ssl_feat = self.ssl_model.extract_feat(x.squeeze(-1))
         x = self.LL(x_ssl_feat) #(bs,frame_number,feat_out_dim)

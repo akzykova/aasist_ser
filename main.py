@@ -25,10 +25,12 @@ from utils import create_optimizer, seed_worker, set_seed, str_to_bool
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-
 from models.AASIST_GFILM import AASISTGFILM
 from models.AASIST_Concat import AASISTConcat
 from models.AASIST_FILM import AASISTFILM
+from models.AMSDF import Module
+from models.AASIST import Model
+from models.AASIST_WAV2VEC import WAV2VECModel
 
 from tqdm import tqdm
 
@@ -95,39 +97,22 @@ def main(args: argparse.Namespace) -> None:
     # evaluates pretrained model and exit script
     if args.eval:
         print("Start evaluation...")
-        evaluate_per_emotion(model, device, config['emo_bonafide'], config['emo_spoof'])
+        evaluate_per_emotion(model, device, config['emo_dataset'])
 
-        # produce_evaluation_file(eval_loader, model, device,
-        #                         eval_score_path, eval_trial_path)
-        # calculate_tDCF_EER(cm_scores_file=eval_score_path,
-        #                    output_file=model_tag / "t-DCF_EER.txt")
-        # print("DONE.")
-        # eval_eer, eval_tdcf = calculate_tDCF_EER(
-        #     cm_scores_file=eval_score_path,
-        #     output_file=model_tag/"loaded_model_t-DCF_EER.txt")
-        # print(eval_eer, eval_tdcf)
+        produce_evaluation_file(eval_loader, model, device,
+                                eval_score_path, eval_trial_path)
+        calculate_tDCF_EER(cm_scores_file=eval_score_path,
+                           output_file=model_tag / "t-DCF_EER.txt")
+        print("DONE.")
+        eval_eer, _ = calculate_tDCF_EER(
+            cm_scores_file=eval_score_path,
+            output_file=model_tag/"loaded_model_t-DCF_EER.txt")
+        print(eval_eer)
         sys.exit(0)
 
-    optimizer = torch.optim.Adam(
-        [
-            {'params': model.film.parameters()},
-            {'params': model.classifier.parameters()}
-        ],
-        lr=optim_config["base_lr"],
-        betas=tuple(optim_config["betas"]),
-        weight_decay=optim_config["weight_decay"],
-        amsgrad=optim_config["amsgrad"]
-    )
+    optim_config["steps_per_epoch"] = len(trn_loader)
+    optimizer, _ = create_optimizer(model.parameters(), optim_config)
 
-
-    best_dev_eer = 1.
-    best_eval_eer = 100.
-    best_dev_tdcf = 0.05
-    best_eval_tdcf = 1.
-    f_log = open(model_tag / "metric_log.txt", "a")
-    f_log.write("=" * 5 + "\n")
-
-    # make directory for metric logging
     metric_path = model_tag / "metrics"
     os.makedirs(metric_path, exist_ok=True)
 
@@ -137,23 +122,17 @@ def main(args: argparse.Namespace) -> None:
         running_loss = train_epoch(trn_loader, model, optimizer, device, config)
         print(f"DONE. \n Loss: {running_loss:.5f}")
 
-        evaluate_per_emotion(model, device, config['emo_bonafide'], config['emo_spoof'])
+        evaluate_per_emotion(model, device, config['emo_dataset'])
 
-        # produce_evaluation_file(dev_loader, model, device,
-        #                         metric_path/"dev_score.txt", dev_trial_path)
-        # dev_eer, dev_tdcf = calculate_tDCF_EER(
-        #     cm_scores_file=metric_path/"dev_score.txt",
-        #     output_file=metric_path/"dev_t-DCF_EER_{}epo.txt".format(epoch),
-        #     printout=False)
+        produce_evaluation_file(dev_loader, model, device,
+                                metric_path/"dev_score.txt", dev_trial_path)
+        dev_eer, dev_tdcf = calculate_tDCF_EER(
+            cm_scores_file=metric_path/"dev_score.txt",
+            output_file=metric_path/"dev_t-DCF_EER_{}epo.txt".format(epoch),
+            printout=False)
         
-        # print("DONE.\nLoss:{:.5f}, dev_eer: {:.3f}, dev_tdcf:{:.5f}".format(
-        #     running_loss, dev_eer, dev_tdcf))
-        
-        
-        # best_dev_tdcf = min(dev_tdcf, best_dev_tdcf)
-        # if best_dev_eer >= dev_eer:
-        #     print("best model find at epoch", epoch)
-        #     best_dev_eer = dev_eer
+        print("DONE.\nLoss:{:.5f}, dev_eer: {:.3f}, dev_tdcf:{:.5f}".format(
+            running_loss, dev_eer, dev_tdcf))
 
         model_state = model.state_dict()
 
@@ -161,37 +140,47 @@ def main(args: argparse.Namespace) -> None:
             model_state,
             model_save_path / f"epoch_{epoch}_full_model.pth"
         )
-        print(f"Saved model weights and optimizer state to {model_save_path}/epoch_{epoch}_full_model.pth")
+        print(f"Saved model weights to {model_save_path}/epoch_{epoch}_full_model.pth")
 
 
     print('End of training')
 
-    # print("Start evaluation...")
-    # produce_evaluation_file(eval_loader, model, device,
-    #                         eval_score_path, eval_trial_path)
-    # calculate_tDCF_EER(cm_scores_file=eval_score_path,
-    #                     output_file=model_tag / "t-DCF_EER.txt")
-    # print("DONE.")
-    # eval_eer, eval_tdcf = calculate_tDCF_EER(
-    #     cm_scores_file=eval_score_path,
-    #     output_file=model_tag/"loaded_model_t-DCF_EER.txt")
-    # print(eval_eer, eval_tdcf)
+    print("Start final evaluation...")
+    produce_evaluation_file(eval_loader, model, device,
+                            eval_score_path, eval_trial_path)
+    calculate_tDCF_EER(cm_scores_file=eval_score_path,
+                        output_file=model_tag / "t-DCF_EER.txt")
+    print("DONE.")
+    eval_eer, _ = calculate_tDCF_EER(
+        cm_scores_file=eval_score_path,
+        output_file=model_tag/"loaded_model_t-DCF_EER.txt")
+    print(eval_eer)
 
-
-def evaluate_per_emotion(model, device, esd_dir, zonos_dir):
+def evaluate_per_emotion(model, device, dataset_dir):
     model.eval()
+    emotions = ["angry", "happy", "neutral", "sad", "surprised"]
 
-    emotions = ["angry_flac", "happy_flac", "neutral_flac", "sad_flac", "surprised_flac"]
     for emotion in emotions:
         print(f'Validating emotion: {emotion}')
-        
-        esd_scores = run_inference_on_folder(model, device, Path(esd_dir) / emotion)
-        
-        zonos_scores = run_inference_on_folder(model, device, Path(zonos_dir) / emotion)
-        
-        eer, _ = compute_eer(esd_scores, zonos_scores)
-        
-        print(f"EER for {emotion}: {eer * 100}")
+        synth_scores = []
+        bonafide_scores = []
+
+        for speaker_id in range(11, 21):
+            speaker_path = Path(dataset_dir) / 'ESD' / f"00{speaker_id}" / emotion
+            esd_scores = run_inference_on_folder(model, device, speaker_path)
+            bonafide_scores.extend(esd_scores)
+
+            for dataset in ['Zonos', 'CosyVoice', 'EmoSpeech']:
+                spoof_path = Path(dataset_dir) / dataset / f"00{speaker_id}"/ emotion
+                scores = run_inference_on_folder(model, device, spoof_path)
+                synth_scores.extend(scores)
+
+        synth_scores = np.array(synth_scores)
+        bonafide_scores = np.array(bonafide_scores)
+
+        eer, _ = compute_eer(bonafide_scores, synth_scores)
+        print(f"EER for {emotion}: {eer * 100:.2f}%")
+
 
 def run_inference_on_folder(model, device, folder_path):
     audio_files = [f.stem for f in folder_path.glob("*.flac")]
@@ -200,55 +189,67 @@ def run_inference_on_folder(model, device, folder_path):
     gen = torch.Generator()
     gen.manual_seed(42)
     
+    num_workers = min(4, os.cpu_count() // 2)
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
         batch_size=24,
         shuffle=False,
+        persistent_workers=num_workers > 0,
         generator=gen
     )
 
     results = []
-    for batch_x, _ in test_loader:
-        batch_x = batch_x.to(device)
-        with torch.no_grad():
-            _, batch_out = model(batch_x)
-            batch_score = (batch_out[:, 1]).data.cpu().numpy().ravel()
-        results.extend(batch_score.tolist())
-    return np.array(results)
+    for batch_x, batch_emo, _, filenames in test_loader:
+        try:
+            batch_x = batch_x.float().cuda()
+            batch_emo = batch_emo.float().cuda()
+            
+            _, batch_out = model(batch_x, batch_emo)
+            scores = batch_out[:, 1].data.cpu().numpy().ravel()
+            results.extend(zip(filenames, map(float, scores)))
+            
+            del batch_x, batch_emo, batch_out
+            torch.cuda.empty_cache()
+            
+        except Exception as e:
+            print(f"\nError processing batch: {str(e)}")
+            results.extend((f, None) for f in filenames)
+    return results
 
 def get_model(model_config: Dict, device: torch.device):
+    model_name = model_config["architecture"]
+
+    model_map = {
+        "AASIST": Model,
+        "AASIST_Concat": AASISTConcat,
+        "AASIST_FILM": AASISTFILM,
+        "AASIST_GFILM": AASISTGFILM,
+        "AMSDF": Module,
+        "AASIST_WAV2VEC": WAV2VECModel
+    }
     
-    model = AASISTWithEmotion(
-        aasist_config=model_config["aasist_config"],
-        ser_config=model_config["ser_config"]
-    ).to(device)
+    if model_name not in model_map:
+        raise ValueError(f"Model {model_name} is not recognized!")
+
+    model_class = model_map[model_name]
+
+    if model_name in ["AASIST_Concat", "AASIST_FILM", "AASIST_GFILM"]:
+        model = model_class(
+            aasist_config=model_config["aasist_config"],
+            ser_config=model_config["ser_config"]
+        ).to(device)
+    else:
+        model = model_class().to(device)
     
     if "model_path" in model_config:
         print(f"\nLoading weights from {model_config['model_path']}")
         try:
             state_dict = torch.load(model_config["model_path"], map_location=device)
             model.load_state_dict(state_dict, strict=False)
-            
-            missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
-            if missing_keys:
-                print(f"Warning: Missing keys: {missing_keys}")
-            if unexpected_keys:
-                print(f"Warning: Unexpected keys: {unexpected_keys}")
         except Exception as e:
             print(f"Error loading model weights: {e}")
     
-    def count_params(module):
-        return sum(p.numel() for p in module.parameters())
-    
-    total_params = count_params(model)
-    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    
-    print("\nModel summary:")
-    print(f"Total: {total_params:,} params (Trainable: {trainable_params:,})")
-    
     return model
-
-
 
 def get_loader(
         database_path: str,
@@ -333,10 +334,10 @@ def produce_evaluation_file(
 
     pbar = tqdm(data_loader, desc="Evaluating", leave=False)
 
-    for batch_x, utt_id in pbar:
+    for batch_x, batch_emo, utt_id in pbar:
         batch_x = batch_x.to(device)
         with torch.no_grad():
-            _, batch_out = model(batch_x)
+            _, batch_out = model(batch_x, batch_emo)
             batch_score = (batch_out[:, 1]).data.cpu().numpy().ravel()
         # add outputs
         fname_list.extend(utt_id)
@@ -369,20 +370,20 @@ def train_epoch(
 
     pbar = tqdm(trn_loader, desc="Training", leave=False)
 
-    for batch_x, batch_y in pbar:
+    for batch_x, batch_emo, batch_y, _ in pbar:
         batch_size = batch_x.size(0)
         num_total += batch_size
         ii += 1
         batch_x = batch_x.to(device)
+        batch_emo = batch_emo.to(device)
         batch_y = batch_y.view(-1).type(torch.int64).to(device)
-        _, batch_out = model(batch_x, Freq_aug=str_to_bool(config["freq_aug"]))
+        _, batch_out = model(batch_x, batch_emo)
+        
         batch_loss = criterion(batch_out, batch_y)
         running_loss += batch_loss.item() * batch_size
         optim.zero_grad()
         batch_loss.backward()
-
         optim.step()
-        
         pbar.set_postfix({
             'loss': batch_loss.item()
         })

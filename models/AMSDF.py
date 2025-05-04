@@ -13,7 +13,7 @@ from .AASIST import *
 class ASR_model(nn.Module):
     def __init__(self):
         super(ASR_model, self).__init__()
-        cp_path = os.path.join('./pretrained_models/xlsr2_300m.pt')   # Change the pre-trained XLSR model path. 
+        cp_path = os.path.join('./models/weights/xlsr2_300m.pt')   # Change the pre-trained XLSR model path. 
         model, cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task([cp_path])
         self.model = model[0].cuda()
         self.linear = nn.Linear(1024, 128)
@@ -32,7 +32,7 @@ class ASR_model(nn.Module):
 class SER_model(nn.Module):
     def __init__(self):
         super(SER_model, self).__init__()
-        cp_path = os.path.join('./pretrained_models/ser_acrnn.pth')   # Change the pre-trained SER model path. 
+        cp_path = os.path.join('./models/weights/ser_acrnn.pth')   # Change the pre-trained SER model path. 
         model=acrnn().cuda()
         model.load_state_dict(torch.load(cp_path))
         self.bn = nn.BatchNorm1d(num_features=50)
@@ -171,4 +171,4 @@ class Module(nn.Module):
         last_hidden = self.drop(last_hidden)
         output = self.out_layer(last_hidden)
         output = self.out_layer2(output)
-        return output
+        return last_hidden, output

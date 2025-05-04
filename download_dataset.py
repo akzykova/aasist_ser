@@ -1,13 +1,37 @@
-"""
-AASIST
-Copyright (c) 2021-present NAVER Corp.
-MIT license
-"""
-
+import argparse
 import os
+import subprocess
+import gdown
+
+def download_la_dataset():
+    url = "https://datashare.ed.ac.uk/bitstream/handle/10283/3336/LA.zip?sequence=3&isAllowed=y"
+    zip_path = "LA.zip"
+
+    print("⬇️  Скачивание ASVspoof2019 LA.zip...")
+    subprocess.run(["curl", "-L", "-o", zip_path, "-#", url])
+    print("📦 Распаковка LA.zip...")
+    subprocess.run(["unzip", "-q", zip_path])
+    os.remove(zip_path)
+    print("✅ LA датасет скачан и распакован.")
+
+def download_emotional_dataset(folder_url):
+    os.makedirs("datasets", exist_ok=True)
+    print("⬇️  Скачивание папки с Dataset of Synthesized Emotional Speech...")
+    gdown.download_folder(folder_url, output="datasets", quiet=False, use_cookies=False)
+    print("✅ Эмоциональный датасет скачан.")
 
 if __name__ == "__main__":
-    cmd = "curl -o ./LA.zip -# https://datashare.ed.ac.uk/bitstream/handle/10283/3336/LA.zip\?sequence\=3\&isAllowed\=y"
-    os.system(cmd)
-    cmd = "unzip LA.zip"
-    os.system(cmd)
+    parser = argparse.ArgumentParser(description="Скачивание аудио-датасетов")
+    parser.add_argument("--dataset", type=str, required=True, choices=["LA", "emotional"],
+                        help="Выберите датасет: 'LA' или 'emotional'")
+    parser.add_argument("--drive-url", type=str, help="URL Google Drive папки (для emotional)")
+
+    args = parser.parse_args()
+
+    if args.dataset == "LA":
+        download_la_dataset()
+    elif args.dataset == "emotional":
+        if not args.drive_url:
+            print("❗ Для скачивания emotional датасета укажите --drive-url")
+        else:
+            download_emotional_dataset(args.drive_url)
