@@ -6,7 +6,7 @@ from pathlib import Path
 import torch
 import numpy as np
 from typing import Dict, List
-from data_utils import Dataset_Custom
+from data_utils import DatasetCustom
 from utils import set_seed
 
 from models.AASIST_GFILM import AASISTGFILM
@@ -73,7 +73,7 @@ def run_inference(args: argparse.Namespace):
     model = get_model(args.model_choice, config["model_config"], device)
     model.eval()
 
-    test_dataset = Dataset_Custom(audio_dir=Path(args.test_dir))
+    test_dataset = DatasetCustom(audio_dir=Path(args.test_dir))
     
     generator = torch.Generator()
     generator.manual_seed(seed)

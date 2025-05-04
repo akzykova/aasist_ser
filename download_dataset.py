@@ -12,9 +12,9 @@ def download_la_dataset():
     os.remove(zip_path)
 
 def download_emotional_dataset(folder_url):
-    os.makedirs("datasets", exist_ok=True)
+    os.makedirs("dataset", exist_ok=True)
     print("Downloading Dataset of Synthesized Emotional Speech...")
-    gdown.download_folder(folder_url, output="datasets", quiet=False, use_cookies=False)
+    gdown.download_folder(folder_url, output="dataset", quiet=False, use_cookies=False)
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Скачивание аудио-датасетов")
     # parser.add_argument("--dataset", type=str, required=True, choices=["LA", "emotional"],
