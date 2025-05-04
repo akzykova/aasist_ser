@@ -16,22 +16,16 @@ def download_la_dataset():
 
 def download_emotional_dataset(folder_url):
     os.makedirs("datasets", exist_ok=True)
-    print("⬇️  Скачивание папки с Dataset of Synthesized Emotional Speech...")
+    print("Downloading Dataset of Synthesized Emotional Speech...")
     gdown.download_folder(folder_url, output="datasets", quiet=False, use_cookies=False)
     print("✅ Эмоциональный датасет скачан.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Скачивание аудио-датасетов")
-    parser.add_argument("--dataset", type=str, required=True, choices=["LA", "emotional"],
-                        help="Выберите датасет: 'LA' или 'emotional'")
-    parser.add_argument("--drive-url", type=str, help="URL Google Drive папки (для emotional)")
+    # parser.add_argument("--dataset", type=str, required=True, choices=["LA", "emotional"],
+    #                     help="Выберите датасет: 'LA' или 'emotional'")
+    # parser.add_argument("--drive-url", type=str, help="URL Google Drive папки (для emotional)")
 
     args = parser.parse_args()
+    download_la_dataset()
 
-    if args.dataset == "LA":
-        download_la_dataset()
-    elif args.dataset == "emotional":
-        if not args.drive_url:
-            print("❗ Для скачивания emotional датасета укажите --drive-url")
-        else:
-            download_emotional_dataset(args.drive_url)

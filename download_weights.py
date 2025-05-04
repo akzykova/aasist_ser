@@ -30,3 +30,12 @@ def download_weight(model_name, dest_folder="./models/weights"):
         print(f"Скачивание весов для {model_name}...")
         gdown.download(url, output_path, quiet=False)
         print(f"Скачано в {output_path}")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Скачивание весов для предобученных моделей")
+    parser.add_argument("--model", type=str, required=True, choices=["AASIST", "AASIST_Concat", "AASIST_FILM", "AASIST_GFILM", "AMSDF", "AASIST_WAV2VEC"],
+                        help="Выберите модель из предложенных: AASIST, AASIST_Concat, AASIST_FILM, AASIST_GFILM, AMSDF, AASIST_WAV2VEC")
+    parser.add_argument("--outpit_dir", type=str, help="Введите название директории для скачивания весов")
+    args = parser.parse_args()
+
+    download_weight(args.model, args.outpit_dir)
