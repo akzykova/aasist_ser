@@ -15,15 +15,16 @@ def download_la_dataset():
 def download_emotional_dataset():
     print("Downloading Emotional Speech Dataset...")
     file_id = "1vDCHiMKfJiylum_IHZL3uZXVJkQpdrQv"
-    zip_path = "emotional_speech.zip"
+    rar_path = "emotional_speech.rar"
     
     gdown.download(
         f"https://drive.google.com/uc?id={file_id}",
-        output=zip_path,
+        output=rar_path,
         quiet=False
     )
-    subprocess.run(["unzip", "-q", zip_path, "-d", "./dataset"])
-    os.remove(zip_path)
+    
+    subprocess.run(["unrar", "x", rar_path, "./dataset"])
+    os.remove(rar_path)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Скачивание аудио-датасетов")
