@@ -115,7 +115,7 @@ class GRS(nn.Module):
 
 class Model(nn.Module):
     def __init__(self):
-        super(Module, self).__init__()
+        super(Model, self).__init__()
         """multi-view feature extractor"""
         self.text_view_extract=ASR_model()
         self.emo_view_extract=SER_model()
