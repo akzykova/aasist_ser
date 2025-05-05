@@ -19,7 +19,14 @@ def get_model(model_config: Dict, device: torch.device):
     print("no. model params:{}".format(nb_params))
 
     if model_config.get("model_path"):
-        model.load_state_dict(torch.load(model_config["model_path"], map_location=device))
+        state_dict = torch.load(model_config["model_path"], map_location=device)
+        model_state_dict = model.state_dict()
+        filtered_state_dict = {
+            k: v for k, v in state_dict.items() 
+            if k in model_state_dict and v.shape == model_state_dict[k].shape
+        }
+        
+        model.load_state_dict(filtered_state_dict, strict=False)
         print("Weights are downloaded from ", model_config["model_path"])
 
     return model
@@ -57,17 +64,13 @@ def run_inference(args: argparse.Namespace):
 
     print("Running inference on test files...")
     results = []
-    for batch_x, batch_emo, _, filenames in test_loader:
-        try:
-            batch_x = batch_x.float().to(device)
-            batch_emo = batch_emo.float().to(device)
-            
-            _, batch_out = model(batch_x, batch_emo)
-            scores = batch_out[:, 1].data.cpu().numpy().ravel()
-            results.extend(zip(filenames, map(float, scores)))
-        except Exception as e:
-            print(f"\nError processing batch: {str(e)}")
-            results.extend((f, None) for f in filenames)
+    for batch_x, batch_emo, filenames in test_loader:
+        batch_x = batch_x.float().to(device)
+        batch_emo = batch_emo.float().to(device)
+        
+        _, batch_out = model(batch_x, batch_emo)
+        scores = batch_out[:, 1].data.cpu().numpy().ravel()
+        results.extend(zip(filenames, map(float, scores)))
             
 
     save_results(results, args.output_file)

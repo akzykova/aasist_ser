@@ -61,9 +61,8 @@ def pad_random(x: np.ndarray, max_len: int = 64600):
     return padded_x
 
 class DatasetCustom(Dataset):
-    def __init__(self, audio_dir, label=0, file_extensions='.flac', cut_len=64600, n_mels = 40, sample_rate=16000):
+    def __init__(self, audio_dir, file_extensions='.flac', cut_len=64600, n_mels = 40, sample_rate=16000):
         self.audio_dir = audio_dir
-        self.label = label
         self.cut_len = cut_len
         self.file_extensions = file_extensions
         self.file_list = []
@@ -72,6 +71,7 @@ class DatasetCustom(Dataset):
         self.sample_rate = sample_rate
         self.frame_length = int(0.025 * sample_rate)
         self.frame_step = int(0.01 * sample_rate)
+
         self.mel_transform = T.MelSpectrogram(
             sample_rate=sample_rate,
             n_fft=self.frame_length,
@@ -94,21 +94,20 @@ class DatasetCustom(Dataset):
         filename = os.path.basename(filepath)
 
         wave = self.load_audio(filepath)
-        
-        wave = self.pad(wave)
+        wave = pad(wave)
+
         max_val = np.max(np.abs(wave))
         if max_val > 0:
             wave = wave / max_val  
 
-        feature_tensor = torch.tensor(wave, dtype=torch.float32)
-        spec_tensor = self.extract_mel_features(wave)
-        spec_tensor = torch.tensor(spec_tensor, dtype=torch.float32)
+        wave = Tensor(wave)
+        spec_wave = self.extract_mel_features(wave)
         
-        return feature_tensor, spec_tensor, torch.tensor(self.label, dtype=torch.float32), filename
+        return wave, spec_wave, filename
     
     def load_audio(self, filepath):
-        wave, fs = librosa.load(filepath, sr=16000)
-        return np.array(wave, dtype=float)
+        wave, _ = librosa.load(filepath, sr=self.sample_rate)
+        return wave.astype(np.float32)
     
     def extract_mel_features(self, x):
         mel_spec = self.mel_transform(x)
@@ -116,35 +115,7 @@ class DatasetCustom(Dataset):
         delta1 = torchaudio.functional.compute_deltas(log_mel)
         delta2 = torchaudio.functional.compute_deltas(delta1)
         return torch.stack([log_mel[..., :300], delta1[..., :300], delta2[..., :300]], dim=1)
-    
-    def pad(self, x, max_len=64600):
-        x_len = x.shape[0]
-        if x_len >= max_len:
-            return x[:max_len]
-        num_repeats = int(max_len / x_len) + 1
-        padded_x = np.tile(x, (1, num_repeats))[:, :max_len][0]
-        return np.array(padded_x, dtype=float)
 
-
-# def get_dataloader(audio_dir, label=0, batch_size=24, num_workers=None, shuffle=True, pin_memory=True):
-#     if num_workers is None:
-#         num_workers = min(4, os.cpu_count() // 2)
-
-#     dataset = DatasetCustom(audio_dir, label=label)
-#     generator = torch.Generator()
-#     generator.manual_seed(seed)
-    
-#     loader = torch.utils.data.DataLoader(
-#         dataset,
-#         batch_size=batch_size,
-#         num_workers=num_workers,
-#         shuffle=shuffle,
-#         pin_memory=pin_memory,
-#         persistent_workers=num_workers > 0,
-#         drop_last=False
-#     )
-    
-#     return loader
 
 class Dataset_ASVspoof2019_train(Dataset):
     def __init__(self, list_IDs, labels, base_dir, n_mels=40, sample_rate=16000):

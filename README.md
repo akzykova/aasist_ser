@@ -46,7 +46,7 @@ P.S. Название репозитория отражает концепцию
 1. **ASVspoof 2019 (Logical Access)**
 
    ```bash
-   python download_dataset.py
+   python download_dataset.py --dataset LA
    ```
 
    или вручную:
@@ -56,14 +56,15 @@ P.S. Название репозитория отражает концепцию
 
 2. **Dataset of Synthesized Emotional Speech**
  
-   Вручную:
+   ```bash
+   python download_dataset.py --dataset emotional
+   ```
+
+   или вручную:
 
    * Скачать и распаковать `Dataset.zip` с сайта https://www.kaggle.com/datasets/annazykovamyzina/dataset-of-synthesized-emotional-speech
    * Указать путь к данным в конфигурации
-
-   ToDo:
-   Добавить на гугл-диск
-
+ 
 ### Обучение моделей (Train)
 
 Обучение моделей производится на основе обучающей части ASVspoof 2019
@@ -91,7 +92,7 @@ P.S. Название репозитория отражает концепцию
 * **WAV2VEC**
 
    ```bash
-   python main.py --config config/WAV2VEC.conf
+   python main.py --config config/AASIST\_WAV2VEC.conf
    ``` 
 
 ### Оценка моделей (Evaluation)
@@ -99,7 +100,7 @@ P.S. Название репозитория отражает концепцию
 Для оценки предобученных моделей предлагается воспользоваться весами. Для загрузки весов укажите необходимую модель:
 
    ```bash
-   python download_weights.py --model "AMSDF"
+   python download_weights.py --model "AASIST"
    ``` 
 
 Перед оценкой модели убедитесь, что загруженные веса находятся в `./models/weights`. При запуске используйте флаг `--eval`:

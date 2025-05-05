@@ -190,7 +190,7 @@ def run_inference_on_folder(model, device, folder_path):
     )
 
     results = []
-    for batch_x, batch_emo, _, filenames in test_loader:
+    for batch_x, batch_emo, filenames in test_loader:
         try:
             batch_x = batch_x.float().to(device)
             batch_emo = batch_emo.float().to(device)

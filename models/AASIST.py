@@ -525,8 +525,8 @@ class Model(nn.Module):
 
         self.out_layer = nn.Linear(5 * gat_dims[1], 2)
 
-    def forward(self, x, Freq_aug=False, *args, **kwargs):
-
+    def forward(self, x, *args, **kwargs):
+        Freq_aug = False
         x = x.unsqueeze(1)
         x = self.conv_time(x, mask=Freq_aug)
         x = x.unsqueeze(dim=1)
