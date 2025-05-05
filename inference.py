@@ -10,13 +10,6 @@ from data_utils import DatasetCustom
 from utils import set_seed
 from importlib import import_module
 
-from models.AASIST_GFILM import AASISTGFILM
-from models.AASIST_Concat import AASISTConcat
-from models.AASIST_FILM import AASISTFILM
-from models.AMSDF import Module
-from models.AASIST import Model
-from models.AASIST_WAV2VEC import WAV2VECModel
-
 
 def get_model(model_config: Dict, device: torch.device):
     module = import_module("models.{}".format(model_config["architecture"]))

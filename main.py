@@ -25,13 +25,6 @@ from utils import create_optimizer, seed_worker, set_seed, str_to_bool
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-from models.AASIST_GFILM import AASISTGFILM
-from models.AASIST_Concat import AASISTConcat
-from models.AASIST_FILM import AASISTFILM
-# from models.AMSDF import Module
-from models.AASIST import Model
-# from models.AASIST_WAV2VEC import WAV2VECModel
-
 from tqdm import tqdm
 
 def main(args: argparse.Namespace) -> None:
