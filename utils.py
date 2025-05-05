@@ -128,8 +128,8 @@ def _get_scheduler(optimizer, optim_config):
 def create_optimizer(model_parameters, optim_config):
     """Defines an optimizer and a scheduler"""
     optimizer = _get_optimizer(model_parameters, optim_config)
-    scheduler = _get_scheduler(optimizer, optim_config)
-    return optimizer, scheduler
+    # scheduler = _get_scheduler(optimizer, optim_config)
+    return optimizer
 
 
 def seed_worker(worker_id):

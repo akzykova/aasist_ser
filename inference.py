@@ -81,8 +81,6 @@ if __name__ == "__main__":
     parser.add_argument("--test_dir", type=str, required=True, help="Directory with test audio files")
     parser.add_argument("--output_file", type=str, default="inference_results.txt", help="Output file path")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
-    parser.add_argument("--model_choice", type=str, required=True, choices=["AASIST", "AASIST_Concat", "AASIST_FILM", "AASIST_GFILM", "AMSDF", "AASIST_WAV2VEC"],
-                        help="Choose model for inference")
 
     args = parser.parse_args()
     run_inference(args)

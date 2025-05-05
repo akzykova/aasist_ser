@@ -104,7 +104,7 @@ def main(args: argparse.Namespace) -> None:
         sys.exit(0)
 
     optim_config["steps_per_epoch"] = len(trn_loader)
-    optimizer, _ = create_optimizer(model.parameters(), optim_config)
+    optimizer = create_optimizer(model.parameters(), optim_config)
 
     metric_path = model_tag / "metrics"
     os.makedirs(metric_path, exist_ok=True)
@@ -159,8 +159,8 @@ def evaluate_per_emotion(model, device, dataset_dir):
         bonafide_scores = []
 
         for speaker_id in range(11, 21):
-            speaker_path = Path(dataset_dir) / 'ESD' / f"00{speaker_id}" / emotion
-            esd_scores = run_inference_on_folder(model, device, speaker_path)
+            bona_path = Path(dataset_dir) / 'ESD' / f"00{speaker_id}" / emotion
+            esd_scores = run_inference_on_folder(model, device, bona_path)
             bonafide_scores.extend(esd_scores)
 
             for dataset in ['Zonos', 'CosyVoice', 'EmoSpeech']:
@@ -176,8 +176,7 @@ def evaluate_per_emotion(model, device, dataset_dir):
 
 
 def run_inference_on_folder(model, device, folder_path):
-    audio_files = [f.stem for f in folder_path.glob("*.flac")]
-    test_dataset = DatasetCustom(list_IDs=audio_files, base_dir=folder_path)
+    test_dataset = DatasetCustom(audio_dir=Path(folder_path))
 
     gen = torch.Generator()
     gen.manual_seed(42)
@@ -194,16 +193,12 @@ def run_inference_on_folder(model, device, folder_path):
     results = []
     for batch_x, batch_emo, _, filenames in test_loader:
         try:
-            batch_x = batch_x.float().cuda()
-            batch_emo = batch_emo.float().cuda()
+            batch_x = batch_x.float().to(device)
+            batch_emo = batch_emo.float().to(device)
             
             _, batch_out = model(batch_x, batch_emo)
             scores = batch_out[:, 1].data.cpu().numpy().ravel()
-            results.extend(zip(filenames, map(float, scores)))
-            
-            del batch_x, batch_emo, batch_out
-            torch.cuda.empty_cache()
-            
+            results.extend(zip(filenames, map(float, scores)))            
         except Exception as e:
             print(f"\nError processing batch: {str(e)}")
             results.extend((f, None) for f in filenames)
@@ -307,6 +302,8 @@ def produce_evaluation_file(
 
     for batch_x, batch_emo, utt_id in pbar:
         batch_x = batch_x.to(device)
+        batch_emo = batch_emo.to(device)
+
         with torch.no_grad():
             _, batch_out = model(batch_x, batch_emo)
             batch_score = (batch_out[:, 1]).data.cpu().numpy().ravel()
@@ -341,7 +338,7 @@ def train_epoch(
 
     pbar = tqdm(trn_loader, desc="Training", leave=False)
 
-    for batch_x, batch_emo, batch_y, _ in pbar:
+    for batch_x, batch_emo, batch_y in pbar:
         batch_size = batch_x.size(0)
         num_total += batch_size
         ii += 1

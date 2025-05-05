@@ -4,3 +4,4 @@ numpy
 soundfile
 librosa
 tqdm
+python_speech_features
