@@ -47,12 +47,11 @@ def run_inference(args: argparse.Namespace):
     generator = torch.Generator()
     generator.manual_seed(args.seed)
     
-    num_workers = min(4, os.cpu_count() // 2)
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
         batch_size=config["batch_size"],
         shuffle=False,
-        persistent_workers=num_workers > 0,
+        persistent_workers=False,
         generator=generator
     )
 

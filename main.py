@@ -181,12 +181,11 @@ def run_inference_on_folder(model, device, folder_path):
     gen = torch.Generator()
     gen.manual_seed(42)
     
-    num_workers = min(4, os.cpu_count() // 2)
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
         batch_size=24,
         shuffle=False,
-        persistent_workers=num_workers > 0,
+        persistent_workers=False,
         generator=gen
     )
 
@@ -377,7 +376,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed",
                         type=int,
                         default=42,
-                        help="random seed (default: 1234)")
+                        help="random seed (default: 42)")
     parser.add_argument(
         "--eval",
         action="store_true",
