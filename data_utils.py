@@ -11,7 +11,6 @@ import torchaudio.transforms as T
 
 
 def genSpoof_list(dir_meta, is_train=False, is_eval=False):
-
     d_meta = {}
     file_list = []
     with open(dir_meta, "r") as f:

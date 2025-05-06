@@ -9,7 +9,7 @@ def download_la_dataset():
     zip_path = "./dataset/LA.zip"
 
     subprocess.run(["curl", "-L", "-o", zip_path, "-#", url])
-    subprocess.run(["unzip", "-q", zip_path, "-d", "./dataset"])
+    subprocess.run(["unzip", "-q", zip_path, "-d", "./dataset/LA"])
     os.remove(zip_path)
 
 def download_emotional_dataset():

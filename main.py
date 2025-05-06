@@ -83,7 +83,7 @@ def main(args: argparse.Namespace) -> None:
     # define model architecture
     model = get_model(model_config, device)
 
-    # define dataloaders
+    #define dataloaders
     trn_loader, dev_loader, eval_loader = get_loader(
         database_path, args.seed, config)
 
@@ -160,16 +160,14 @@ def evaluate_per_emotion(model, device, dataset_dir):
 
         for speaker_id in range(11, 21):
             bona_path = Path(dataset_dir) / 'ESD' / f"00{speaker_id}" / emotion
-            esd_scores = run_inference_on_folder(model, device, bona_path)
-            bonafide_scores.extend(esd_scores)
+            bonafide_scores.extend(run_inference_on_folder(model, device, bona_path))
 
             for dataset in ['Zonos', 'CosyVoice', 'EmoSpeech']:
-                spoof_path = Path(dataset_dir) / dataset / f"00{speaker_id}"/ emotion
-                scores = run_inference_on_folder(model, device, spoof_path)
-                synth_scores.extend(scores)
+                spoof_path = Path(dataset_dir) / dataset / f"00{speaker_id}" / emotion
+                synth_scores.extend(run_inference_on_folder(model, device, spoof_path))
 
-        synth_scores = np.array(synth_scores)
-        bonafide_scores = np.array(bonafide_scores)
+        synth_scores = np.array(synth_scores, dtype=np.float64)
+        bonafide_scores = np.array(bonafide_scores, dtype=np.float64)
 
         eer, _ = compute_eer(bonafide_scores, synth_scores)
         print(f"EER for {emotion}: {eer * 100:.2f}%")
@@ -177,31 +175,22 @@ def evaluate_per_emotion(model, device, dataset_dir):
 
 def run_inference_on_folder(model, device, folder_path):
     test_dataset = DatasetCustom(audio_dir=Path(folder_path))
-
-    gen = torch.Generator()
-    gen.manual_seed(42)
     
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
-        batch_size=24,
+        batch_size=10,
         shuffle=False,
-        persistent_workers=False,
-        generator=gen
     )
 
-    results = []
-    for batch_x, batch_emo, filenames in test_loader:
-        try:
-            batch_x = batch_x.float().to(device)
-            batch_emo = batch_emo.float().to(device)
-            
-            _, batch_out = model(batch_x, batch_emo)
-            scores = batch_out[:, 1].data.cpu().numpy().ravel()
-            results.extend(zip(filenames, map(float, scores)))            
-        except Exception as e:
-            print(f"\nError processing batch: {str(e)}")
-            results.extend((f, None) for f in filenames)
-    return results
+    scores = []
+    for batch_x, batch_emo, _ in test_loader:
+        batch_x = batch_x.float().to(device)
+        batch_emo = batch_emo.float().to(device)
+        with torch.no_grad():
+          _, batch_out = model(batch_x, batch_emo)
+          scores.extend(batch_out[:, 1].cpu().numpy().ravel().tolist())
+    
+    return scores
 
 def get_model(model_config: Dict, device: torch.device):
     module = import_module("models.{}".format(model_config["architecture"]))

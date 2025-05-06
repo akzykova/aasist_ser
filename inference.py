@@ -56,9 +56,8 @@ def run_inference(args: argparse.Namespace):
     
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
-        batch_size=config["batch_size"],
+        batch_size=10,
         shuffle=False,
-        persistent_workers=False,
         generator=generator
     )
 
